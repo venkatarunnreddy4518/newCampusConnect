@@ -38,7 +38,9 @@ const Events = () => {
             <p className="col-span-full text-center text-muted-foreground">No events found.</p>
           ) : (
             filtered.map((event) => (
-              <EventCard key={event.id} event={event} />
+              <div key={event.id}>
+                <EventCard event={event} />
+              </div>
             ))
           )}
         </div>

@@ -12,11 +12,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const checkAdminStatus = async (userId: string) => {
       console.log("1. Checking admin status for ID:", userId);
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      // Replace your current fetch with this:
+const { data, error } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', userId)
+  .maybeSingle(); // Returns null instead of crashing if user is missing
+
+if (error) {
+  console.error("Profile fetch error:", error.message);
+}
       
       // Tell TypeScript to relax and let us read the properties
       const profile = data as any; 
