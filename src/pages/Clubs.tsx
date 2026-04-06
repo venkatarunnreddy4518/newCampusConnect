@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Layout from "@/components/Layout";
+import SectionAmbientArt from "@/components/SectionAmbientArt";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/database/client";
@@ -164,6 +165,7 @@ const Clubs = () => {
         <div className="absolute inset-0 bg-grid-premium opacity-[0.3]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--foreground)_/_0.06),transparent_34%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,hsl(var(--foreground)_/_0.04),transparent_40%)]" />
+        <SectionAmbientArt variant="clubs" />
 
         <div className="relative container py-16">
           <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">

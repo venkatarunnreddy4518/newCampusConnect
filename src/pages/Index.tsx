@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -26,6 +26,15 @@ const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
 };
+
+const fallingStars = [
+  { left: "8%", top: "6%", delay: "0.2s", duration: "9.8s" },
+  { left: "22%", top: "2%", delay: "2.1s", duration: "11.6s" },
+  { left: "38%", top: "8%", delay: "4.4s", duration: "10.2s" },
+  { left: "54%", top: "4%", delay: "1.3s", duration: "12.1s" },
+  { left: "69%", top: "1%", delay: "5.4s", duration: "10.8s" },
+  { left: "82%", top: "10%", delay: "3.5s", duration: "11.2s" },
+];
 
 const Index = () => {
   const { events } = useEvents();
@@ -126,6 +135,83 @@ const Index = () => {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-premium opacity-[0.6]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.75),transparent_26%),radial-gradient(circle_at_bottom,rgba(0,0,0,0.06),transparent_32%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_26%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.03),transparent_32%)]" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 hidden lg:block">
+          <div className="absolute inset-0 opacity-100 transition-opacity duration-500 dark:opacity-0">
+            <motion.div
+              animate={{ y: [0, -10, 0], rotate: [0, 4, 0] }}
+              transition={{ duration: 8.6, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute left-[4%] top-[16%] hidden xl:block"
+            >
+              <div className="relative h-44 w-44 opacity-70">
+                <div className="absolute inset-4 rounded-full border border-dashed border-foreground/10" />
+                <div className="absolute left-4 top-10 h-24 w-32 rotate-[16deg] rounded-[999px] border border-foreground/10 border-b-transparent border-r-transparent" />
+                <div className="absolute left-12 top-24 h-px w-28 rotate-[12deg] bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
+                <div className="absolute left-20 top-20 h-16 w-16 rounded-full border border-foreground/8" />
+                <motion.div
+                  animate={{ x: [0, 16, 0], y: [0, -12, 0] }}
+                  transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute left-24 top-5 h-4 w-4 rounded-full border border-foreground/15 bg-background shadow-[0_0_0_8px_hsl(var(--background)_/_0.92)]"
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, 10, 0], rotate: [0, -2, 0] }}
+              transition={{ duration: 9.4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute right-[5%] top-[19%] hidden xl:block"
+            >
+              <div className="relative h-40 w-56 rounded-[34px] border border-foreground/10 bg-background/35 backdrop-blur-[2px]">
+                <div className="absolute inset-4 rounded-[26px] border border-foreground/9" />
+                <div className="absolute inset-y-4 left-1/2 w-px -translate-x-1/2 bg-foreground/10" />
+                <div className="absolute inset-x-4 top-1/2 h-px -translate-y-1/2 bg-foreground/10" />
+                <div className="absolute left-7 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full border border-foreground/8" />
+                <div className="absolute right-7 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full border border-foreground/8" />
+                <motion.div
+                  animate={{ x: [0, 18, 0], y: [0, -8, 0] }}
+                  transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute left-16 top-16 h-4 w-4 rounded-full border border-foreground/15 bg-background shadow-[0_0_0_8px_hsl(var(--background)_/_0.92)]"
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 7.8, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute bottom-[19%] left-[7%] hidden xl:block"
+            >
+              <div className="relative h-36 w-36 opacity-65">
+                <div className="absolute inset-0 rounded-full border border-foreground/10" />
+                <div className="absolute inset-5 rounded-full border border-dashed border-foreground/10" />
+                <div className="absolute inset-11 rounded-full border border-foreground/8" />
+                <div className="absolute left-1/2 top-1/2 h-px w-24 -translate-x-1/2 bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 9.5, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0"
+                >
+                  <div className="absolute left-1/2 top-0 h-4 w-4 -translate-x-1/2 rounded-full border border-foreground/15 bg-background shadow-[0_0_0_8px_hsl(var(--background)_/_0.92)]" />
+                </motion.div>
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="absolute inset-0 opacity-0 transition-opacity duration-500 dark:opacity-100">
+            {fallingStars.map((star, index) => (
+              <span
+                key={`${star.left}-${index}`}
+                className="homepage-falling-star"
+                style={
+                  {
+                    left: star.left,
+                    top: star.top,
+                    animationDelay: star.delay,
+                    animationDuration: star.duration,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
+        </div>
 
         <div className="container relative flex min-h-[calc(100vh-5rem)] flex-col justify-center py-10">
           <motion.div

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowRight, Calendar, Radio, Sparkles, Ticket } from "lucide-react";
 import Layout from "@/components/Layout";
 import EventCard from "@/components/EventCard";
+import SectionAmbientArt from "@/components/SectionAmbientArt";
 import { useEvents } from "@/hooks/useEvents";
 import { EventCategory } from "@/data/campus-data";
 
@@ -20,6 +21,7 @@ const Events = () => {
         <div className="absolute inset-0 bg-grid-premium opacity-[0.3]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--foreground)_/_0.06),transparent_34%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,hsl(var(--foreground)_/_0.04),transparent_40%)]" />
+        <SectionAmbientArt variant="events" />
 
         <div className="relative container py-16">
           <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Layout from "@/components/Layout";
+import SectionAmbientArt from "@/components/SectionAmbientArt";
 import { useEvents } from "@/hooks/useEvents";
 import {
   Plus, Bell, Users, Settings, Upload, Image, Trash2, Edit2, Save,
@@ -510,36 +511,44 @@ const Admin = () => {
   return (
     <Layout>
       <div className="container space-y-8 py-10">
-        <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[34px] border border-border/80 bg-primary p-7 text-primary-foreground shadow-card md:p-8">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-primary-foreground/55">Campus control room</p>
-            <div className="mt-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-                <Settings className="h-6 w-6" />
-              </div>
-              <h1 className="font-display text-3xl font-black md:text-4xl">Admin Dashboard</h1>
-            </div>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-primary-foreground/78">
-              Manage events, clubs, registrations, permissions, notifications, and homepage media from one premium control surface.
-            </p>
-          </div>
+        <section className="relative overflow-hidden rounded-[40px]">
+          <div className="absolute inset-0 bg-gradient-hero" />
+          <div className="absolute inset-0 bg-grid-premium opacity-[0.28]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--foreground)_/_0.06),transparent_34%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,hsl(var(--foreground)_/_0.04),transparent_40%)]" />
+          <SectionAmbientArt variant="admin" />
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              { label: "Events", value: String(events.length).padStart(2, "0"), icon: Plus },
-              { label: "Clubs", value: String(clubs.length).padStart(2, "0"), icon: Crown },
-              { label: "Profiles", value: String(profiles.length).padStart(2, "0"), icon: Users },
-            ].map((item) => (
-              <div key={item.label} className="rounded-[30px] border border-border/80 bg-card px-5 py-5 shadow-card">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{item.label}</p>
-                  <item.icon className="h-4 w-4 text-primary" />
+          <div className="relative grid gap-5 p-2 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-[34px] border border-border/80 bg-primary p-7 text-primary-foreground shadow-card md:p-8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-primary-foreground/55">Campus control room</p>
+              <div className="mt-4 flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+                  <Settings className="h-6 w-6" />
                 </div>
-                <p className="mt-4 font-display text-3xl font-black">{item.value}</p>
+                <h1 className="font-display text-3xl font-black md:text-4xl">Admin Dashboard</h1>
               </div>
-            ))}
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-primary-foreground/78">
+                Manage events, clubs, registrations, permissions, notifications, and homepage media from one premium control surface.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { label: "Events", value: String(events.length).padStart(2, "0"), icon: Plus },
+                { label: "Clubs", value: String(clubs.length).padStart(2, "0"), icon: Crown },
+                { label: "Profiles", value: String(profiles.length).padStart(2, "0"), icon: Users },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[30px] border border-border/80 bg-card/95 px-5 py-5 shadow-card backdrop-blur-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{item.label}</p>
+                    <item.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <p className="mt-4 font-display text-3xl font-black">{item.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
 
         <div className="rounded-[32px] border border-border/80 bg-card p-4 shadow-card">
           <div className="flex flex-wrap gap-2 overflow-x-auto">

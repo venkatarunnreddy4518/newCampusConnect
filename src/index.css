@@ -6,14 +6,14 @@
 
 @layer base {
   :root {
-    --background: 0 0% 97%;
-    --foreground: 0 0% 8%;
+    --background: 0 0% 95%;
+    --foreground: 0 0% 10%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 8%;
+    --card: 0 0% 97.5%;
+    --card-foreground: 0 0% 10%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 8%;
+    --popover: 0 0% 97.5%;
+    --popover-foreground: 0 0% 10%;
 
     --primary: 0 0% 8%;
     --primary-foreground: 0 0% 100%;
@@ -21,36 +21,36 @@
     --secondary: 0 0% 18%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 93%;
-    --muted-foreground: 0 0% 42%;
+    --muted: 0 0% 91%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 0 0% 88%;
-    --accent-foreground: 0 0% 8%;
+    --accent: 0 0% 90%;
+    --accent-foreground: 0 0% 10%;
 
     --destructive: 0 0% 16%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
+    --border: 0 0% 82%;
+    --input: 0 0% 84%;
     --ring: 0 0% 18%;
 
     --radius: 1.1rem;
 
-    --login-bg: 0 0% 97%;
-    --login-card: 0 0% 100%;
-    --login-card-border: 0 0% 86%;
-    --login-input: 0 0% 96%;
-    --login-border: 0 0% 86%;
-    --login-placeholder: 0 0% 45%;
+    --login-bg: 0 0% 95%;
+    --login-card: 0 0% 97.5%;
+    --login-card-border: 0 0% 83%;
+    --login-input: 0 0% 94%;
+    --login-border: 0 0% 83%;
+    --login-placeholder: 0 0% 47%;
     --login-subtitle: 0 0% 40%;
     --login-link: 0 0% 8%;
     --login-accent: 0 0% 8%;
     --login-accent-fg: 0 0% 100%;
-    --login-social-hover: 0 0% 93%;
+    --login-social-hover: 0 0% 91%;
     --login-focus: 0 0% 18%;
-    --login-orb-1: 0 0% 88%;
-    --login-orb-2: 0 0% 84%;
-    --login-orb-3: 0 0% 80%;
+    --login-orb-1: 0 0% 86%;
+    --login-orb-2: 0 0% 82%;
+    --login-orb-3: 0 0% 78%;
 
     --campus-coral: 0 0% 22%;
     --campus-teal: 0 0% 30%;
@@ -59,14 +59,19 @@
     --campus-cream: 0 0% 97%;
     --campus-ink: 0 0% 8%;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 96%;
     --sidebar-foreground: 0 0% 14%;
     --sidebar-primary: 0 0% 8%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 93%;
+    --sidebar-accent: 0 0% 91%;
     --sidebar-accent-foreground: 0 0% 8%;
-    --sidebar-border: 0 0% 85%;
+    --sidebar-border: 0 0% 82%;
     --sidebar-ring: 0 0% 18%;
+
+    --page-glow-1: 0.03;
+    --page-glow-2: 0.018;
+    --hero-glow: 0.055;
+    --grid-line: 0.035;
 
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'DM Sans', sans-serif;
@@ -125,6 +130,11 @@
     --login-orb-1: 0 0% 18%;
     --login-orb-2: 0 0% 14%;
     --login-orb-3: 0 0% 22%;
+
+    --page-glow-1: 0.05;
+    --page-glow-2: 0.035;
+    --hero-glow: 0.08;
+    --grid-line: 0.05;
   }
 }
 
@@ -140,8 +150,8 @@
   body {
     @apply bg-background font-body text-foreground antialiased;
     background-image:
-      radial-gradient(circle at top left, hsl(var(--foreground) / 0.05), transparent 24%),
-      radial-gradient(circle at bottom right, hsl(var(--foreground) / 0.035), transparent 26%);
+      radial-gradient(circle at top left, hsl(var(--foreground) / var(--page-glow-1)), transparent 24%),
+      radial-gradient(circle at bottom right, hsl(var(--foreground) / var(--page-glow-2)), transparent 26%);
     caret-color: transparent;
   }
 
@@ -191,9 +201,35 @@
     background-image: linear-gradient(135deg, hsl(var(--foreground)), hsl(var(--muted-foreground)));
   }
 
+  .homepage-falling-star {
+    position: absolute;
+    width: 92px;
+    height: 1px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.88));
+    filter: drop-shadow(0 0 8px hsl(var(--foreground) / 0.18));
+    opacity: 0;
+    animation: homepage-star-fall 10s linear infinite;
+    transform: rotate(-28deg);
+    will-change: transform, opacity;
+  }
+
+  .homepage-falling-star::after {
+    content: "";
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: hsl(var(--foreground) / 0.94);
+    box-shadow: 0 0 14px hsl(var(--foreground) / 0.28);
+    transform: translateY(-50%);
+  }
+
   .bg-gradient-hero {
     background:
-      radial-gradient(circle at top center, hsl(var(--foreground) / 0.08), transparent 26%),
+      radial-gradient(circle at top center, hsl(var(--foreground) / var(--hero-glow)), transparent 26%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
   }
 
@@ -203,8 +239,8 @@
 
   .bg-grid-premium {
     background-image:
-      linear-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
+      linear-gradient(hsl(var(--foreground) / var(--grid-line)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--foreground) / var(--grid-line)) 1px, transparent 1px);
     background-size: 34px 34px;
   }
 
@@ -224,5 +260,25 @@
     box-shadow:
       0 18px 60px -24px hsl(var(--foreground) / 0.16),
       0 6px 24px -14px hsl(var(--foreground) / 0.1);
+  }
+}
+
+@keyframes homepage-star-fall {
+  0% {
+    transform: translate3d(80px, -10vh, 0) rotate(-28deg) scaleX(0.55);
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 0.42;
+  }
+
+  68% {
+    opacity: 0.42;
+  }
+
+  100% {
+    transform: translate3d(-180px, 94vh, 0) rotate(-28deg) scaleX(1);
+    opacity: 0;
   }
 }

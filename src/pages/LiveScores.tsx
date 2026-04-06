@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Activity, ArrowLeft, Clock3, Trophy } from "lucide-react";
 import Layout from "@/components/Layout";
+import SectionAmbientArt from "@/components/SectionAmbientArt";
 import { supabase } from "@/integrations/database/client";
 
 interface LiveMatch {
@@ -512,6 +513,7 @@ const LiveScores = () => {
             <div className="absolute inset-0 bg-grid-premium opacity-[0.3]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--foreground)_/_0.06),transparent_34%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,hsl(var(--foreground)_/_0.04),transparent_40%)]" />
+            <SectionAmbientArt variant="scores" />
 
             <div className="relative container max-w-6xl py-14 md:py-16">
               <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">

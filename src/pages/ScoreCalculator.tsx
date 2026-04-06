@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import SectionAmbientArt from "@/components/SectionAmbientArt";
 import {
   Trophy, Plus, Trash2, Save, RotateCcw, ArrowRightLeft, CircleDot,
   Users, ChevronDown,
@@ -239,52 +240,97 @@ const ScoreCalculator = () => {
   const battingTeamName = selectedMatch
     ? selectedMatch.batting_team === "A" ? selectedMatch.team_a : selectedMatch.team_b
     : "";
+  const liveMatchCount = matches.filter((match) => match.status === "live").length;
+  const completedMatchCount = matches.filter((match) => match.status === "completed").length;
 
   return (
     <Layout>
-      <div className="container py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-7 w-7 text-accent" />
-            <h1 className="font-display text-3xl font-bold">Score Calculator</h1>
-          </div>
-          <Button onClick={() => setCreating(!creating)} variant={creating ? "outline" : "default"}>
-            <Plus className="h-4 w-4 mr-1" /> New Match
-          </Button>
-        </div>
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-hero" />
+        <div className="absolute inset-0 bg-grid-premium opacity-[0.3]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--foreground)_/_0.06),transparent_34%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,hsl(var(--foreground)_/_0.04),transparent_40%)]" />
+        <SectionAmbientArt variant="scorer" />
 
-        {/* Create match form */}
-        {creating && (
-          <div className="mb-6 rounded-xl border bg-card p-6 shadow-card">
-            <h3 className="font-display text-lg font-semibold mb-4">Create New Match</h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Team 1 Name</label>
-                <Input value={newMatch.team_a} onChange={e => setNewMatch({ ...newMatch, team_a: e.target.value })} placeholder="e.g. India" />
+        <div className="relative container max-w-6xl py-14 md:py-16">
+          <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/90 px-4 py-2 text-muted-foreground shadow-card">
+                <Trophy className="h-4 w-4 text-foreground" />
+                <span className="text-xs font-semibold uppercase tracking-[0.22em]">Live scoring tools with faster match control</span>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Team 2 Name</label>
-                <Input value={newMatch.team_b} onChange={e => setNewMatch({ ...newMatch, team_b: e.target.value })} placeholder="e.g. Australia" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Sport</label>
-                <Input value={newMatch.sport} onChange={e => setNewMatch({ ...newMatch, sport: e.target.value })} placeholder="Cricket" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Match Format</label>
-                <Select value={newMatch.match_format} onValueChange={v => setNewMatch({ ...newMatch, match_format: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {FORMATS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+
+              <h1 className="mt-6 max-w-4xl font-display text-5xl font-black leading-[0.98] text-foreground md:text-6xl">
+                Run live scoreboards from one focused scorer workspace.
+              </h1>
+
+              <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
+                Create a match, update batting flow, manage innings, and keep scorecards synchronized without losing track of the current game state.
+              </p>
             </div>
-            <Button className="mt-4" onClick={createMatch}><Plus className="h-4 w-4 mr-1" /> Create Match</Button>
-          </div>
-        )}
 
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { label: "Matches", value: String(matches.length).padStart(2, "0"), icon: Trophy },
+                { label: "Live", value: String(liveMatchCount).padStart(2, "0"), icon: CircleDot },
+                { label: "Completed", value: String(completedMatchCount).padStart(2, "0"), icon: Users },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[28px] border border-border/80 bg-background/90 px-5 py-5 text-foreground shadow-card backdrop-blur-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{item.label}</p>
+                    <item.icon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <p className="mt-4 font-display text-3xl font-black">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="container relative z-10 -mt-6 max-w-6xl pb-16">
+        <div className="rounded-[34px] border border-border/80 bg-card p-6 shadow-card">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">Scorer controls</p>
+              <h2 className="mt-2 font-display text-3xl font-black leading-tight">Control the live match flow from here.</h2>
+            </div>
+            <Button onClick={() => setCreating(!creating)} variant={creating ? "outline" : "default"}>
+              <Plus className="mr-1 h-4 w-4" /> {creating ? "Close Match Form" : "New Match"}
+            </Button>
+          </div>
+
+          {creating && (
+            <div className="mb-6 rounded-[28px] border border-border/80 bg-background p-6 shadow-sm">
+              <h3 className="mb-4 font-display text-lg font-semibold">Create New Match</h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Team 1 Name</label>
+                  <Input value={newMatch.team_a} onChange={e => setNewMatch({ ...newMatch, team_a: e.target.value })} placeholder="e.g. India" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Team 2 Name</label>
+                  <Input value={newMatch.team_b} onChange={e => setNewMatch({ ...newMatch, team_b: e.target.value })} placeholder="e.g. Australia" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Sport</label>
+                  <Input value={newMatch.sport} onChange={e => setNewMatch({ ...newMatch, sport: e.target.value })} placeholder="Cricket" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Match Format</label>
+                  <Select value={newMatch.match_format} onValueChange={v => setNewMatch({ ...newMatch, match_format: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {FORMATS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button className="mt-4" onClick={createMatch}><Plus className="mr-1 h-4 w-4" /> Create Match</Button>
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           {/* Match list sidebar */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Matches</h3>
@@ -603,7 +649,8 @@ const ScoreCalculator = () => {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </section>
     </Layout>
   );
 };
