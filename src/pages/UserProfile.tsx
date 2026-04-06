@@ -302,6 +302,10 @@ const UserProfile = () => {
                           <Github className="h-4 w-4 text-muted-foreground" />
                           <Input value={formData.github_url} onChange={e => setFormData({...formData, github_url: e.target.value})} placeholder="GitHub URL" />
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Linkedin className="h-4 w-4 text-muted-foreground" />
+                          <Input value={formData.linkedin_url} onChange={e => setFormData({...formData, linkedin_url: e.target.value})} placeholder="LinkedIn URL" />
+                        </div>
                       </div>
                     </div>
 
