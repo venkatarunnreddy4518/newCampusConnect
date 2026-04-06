@@ -17,21 +17,23 @@ const Events = () => {
     <Layout>
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero" />
-        <div className="absolute inset-0 bg-grid-premium opacity-[0.12]" />
+        <div className="absolute inset-0 bg-grid-premium opacity-[0.3]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--foreground)_/_0.06),transparent_34%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,hsl(var(--foreground)_/_0.04),transparent_40%)]" />
 
         <div className="relative container py-16">
           <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-primary-foreground/80">
-                <Sparkles className="h-4 w-4 text-accent" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/90 px-4 py-2 text-muted-foreground shadow-card">
+                <Sparkles className="h-4 w-4 text-foreground" />
                 <span className="text-xs font-semibold uppercase tracking-[0.22em]">Campus events, presented like launches</span>
               </div>
 
-              <h1 className="mt-6 max-w-4xl font-display text-5xl font-black leading-[0.98] text-primary-foreground md:text-6xl">
+              <h1 className="mt-6 max-w-4xl font-display text-5xl font-black leading-[0.98] text-foreground md:text-6xl">
                 Browse every event through a cleaner, more premium event hub.
               </h1>
 
-              <p className="mt-6 max-w-2xl text-base leading-8 text-primary-foreground/68 md:text-lg">
+              <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
                 Discover upcoming registrations, spot live experiences, and move straight into the events that matter without digging through clutter.
               </p>
             </div>
@@ -42,10 +44,10 @@ const Events = () => {
                 { label: "Live now", value: String(liveEvents).padStart(2, "0"), icon: Radio },
                 { label: "Categories", value: "04", icon: Ticket },
               ].map((item) => (
-                <div key={item.label} className="rounded-[28px] border border-white/10 bg-white/8 px-5 py-5 text-primary-foreground shadow-card backdrop-blur-sm">
+                <div key={item.label} className="rounded-[28px] border border-border/80 bg-background/90 px-5 py-5 text-foreground shadow-card backdrop-blur-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary-foreground/55">{item.label}</p>
-                    <item.icon className="h-4 w-4 text-primary-foreground/65" />
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{item.label}</p>
+                    <item.icon className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <p className="mt-4 font-display text-3xl font-black">{item.value}</p>
                 </div>
