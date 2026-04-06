@@ -115,6 +115,20 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS event_reminders (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  registration_id TEXT NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
+  event_name TEXT NOT NULL,
+  event_date TEXT NOT NULL,
+  reminder_status TEXT NOT NULL DEFAULT 'active' CHECK (
+    reminder_status IN ('active', 'sent', 'cancelled')
+  ),
+  reminder_sent_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE (registration_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS site_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
@@ -177,6 +191,8 @@ CREATE INDEX IF NOT EXISTS idx_club_memberships_user_id ON club_memberships(user
 CREATE INDEX IF NOT EXISTS idx_registrations_user_id ON registrations(user_id);
 CREATE INDEX IF NOT EXISTS idx_registrations_event_name ON registrations(event_name);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id_created_at ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_event_reminders_user_id ON event_reminders(user_id);
+CREATE INDEX IF NOT EXISTS idx_event_reminders_registration_id ON event_reminders(registration_id);
 CREATE INDEX IF NOT EXISTS idx_live_matches_status_created_at ON live_matches(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_match_scorecard_match_id_order ON match_scorecard(match_id, batting_order);
 

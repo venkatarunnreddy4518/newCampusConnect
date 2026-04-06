@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { initialEvents } from "@/data/campus-data";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
-import { CheckCircle, History, Calendar, MapPin, Clock, LogIn, Play, Video, Users, AlertTriangle, ArrowLeft } from "lucide-react";
+import { CheckCircle, History, Calendar, MapPin, Clock, LogIn, Play, Video, Users, AlertTriangle, ArrowLeft, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,6 +55,9 @@ const Register = () => {
   const [selectedEvent, setSelectedEvent] = useState<DbEventDetail | null>(null);
   const [dbEvents, setDbEvents] = useState<DbEventDetail[]>([]);
   const [registrationCount, setRegistrationCount] = useState<number>(0);
+  const [lastRegistrationId, setLastRegistrationId] = useState<string>("");
+  const [showRemindModal, setShowRemindModal] = useState(false);
+  const [settingReminder, setSettingReminder] = useState(false);
 
   const fetchDbEvents = async () => {
     const { data } = await supabase.from("events").select("id, name, date, venue, description, category, poster_url, trailer_url, is_live, max_capacity").order("date");
@@ -110,13 +113,13 @@ const Register = () => {
     if (!matchedEvent) return;
 
     setSubmitting(true);
-    const { error } = await supabase.from("registrations").insert({
+    const { data, error } = await supabase.from("registrations").insert({
       user_id: user.id,
       event_name: matchedEvent.name,
       event_category: matchedEvent.category,
       event_date: matchedEvent.date,
       event_venue: matchedEvent.venue,
-    });
+    }).select();
 
     if (error) {
       toast.error("Registration failed: " + error.message);
@@ -125,10 +128,41 @@ const Register = () => {
     }
 
     setErrors({});
+    if (data && data.length > 0) {
+      setLastRegistrationId(data[0].id);
+    }
     setSuccess(true);
+    setShowRemindModal(true);
     setSubmitting(false);
     fetchRegistrations();
     toast.success("Registration successful!");
+  };
+
+  const handleSetReminder = async () => {
+    if (!user || !selectedEvent || !lastRegistrationId) return;
+    
+    setSettingReminder(true);
+    try {
+      const { error } = await supabase.from("event_reminders").insert({
+        user_id: user.id,
+        registration_id: lastRegistrationId,
+        event_name: selectedEvent.name,
+        event_date: selectedEvent.date,
+      });
+
+      if (error) throw error;
+      
+      toast.success(`Reminder set for ${selectedEvent.name}! You'll get an email notification.`);
+      setShowRemindModal(false);
+    } catch (err: any) {
+      toast.error("Failed to set reminder: " + err.message);
+    } finally {
+      setSettingReminder(false);
+    }
+  };
+
+  const handleSkipReminder = () => {
+    setShowRemindModal(false);
   };
 
   const statusColor = (status: string) => {
@@ -158,13 +192,62 @@ const Register = () => {
     return (
       <Layout>
         <div className="container flex flex-col items-center justify-center py-20 text-center">
-          <CheckCircle className="h-16 w-16 text-secondary" />
-          <h2 className="mt-4 font-display text-2xl font-bold">Registration Successful!</h2>
-          <p className="mt-2 text-muted-foreground">You have been registered for the event. Check notifications for updates.</p>
-          <div className="mt-6 flex gap-3">
-            <InteractiveHoverButton text="Register for Another" className="text-sm font-semibold" onClick={() => { setSuccess(false); setForm({ name: "", rollNumber: "", department: "", phone: "", eventId: "" }); }} />
-            <InteractiveHoverButton text="View History" className="text-sm font-semibold" onClick={() => { setSuccess(false); setShowHistory(true); }} />
-          </div>
+          {showRemindModal ? (
+            // Reminder Modal
+            <div className="w-full max-w-md">
+              <div className="rounded-2xl border bg-card p-8 shadow-lg">
+                <div className="flex justify-center">
+                  <div className="rounded-full bg-primary/10 p-4">
+                    <Bell className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <h2 className="mt-4 font-display text-2xl font-bold">Get Reminders?</h2>
+                <p className="mt-2 text-muted-foreground">
+                  We'll send you an email reminder on{" "}
+                  <span className="font-semibold">{selectedEvent?.date}</span> at the event time
+                </p>
+                
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3 text-left text-sm">
+                    <Calendar className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-semibold">{selectedEvent?.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedEvent?.date} • {selectedEvent?.venue}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={handleSkipReminder}
+                    className="flex-1 rounded-lg border border-border px-4 py-2.5 font-medium transition-colors hover:bg-muted"
+                  >
+                    Not Now
+                  </button>
+                  <button
+                    onClick={handleSetReminder}
+                    disabled={settingReminder}
+                    className="flex-1 rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {settingReminder ? "Setting..." : "Yes, Remind Me"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Success Screen
+            <>
+              <CheckCircle className="h-16 w-16 text-secondary" />
+              <h2 className="mt-4 font-display text-2xl font-bold">Registration Successful!</h2>
+              <p className="mt-2 text-muted-foreground">You have been registered for the event. Check notifications for updates.</p>
+              <div className="mt-6 flex gap-3">
+                <InteractiveHoverButton text="Register for Another" className="text-sm font-semibold" onClick={() => { setSuccess(false); setForm({ name: "", rollNumber: "", department: "", phone: "", eventId: "" }); }} />
+                <InteractiveHoverButton text="View History" className="text-sm font-semibold" onClick={() => { setSuccess(false); setShowHistory(true); }} />
+              </div>
+            </>
+          )}
         </div>
       </Layout>
     );

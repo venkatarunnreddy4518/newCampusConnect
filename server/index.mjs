@@ -114,6 +114,10 @@ function canReadRow(table, row, context) {
       return Boolean(context?.user) && (hasRole(context, "admin") || row.user_id === context.user.id);
     case "notifications":
       return Boolean(context?.user) && row.user_id === context.user.id;
+    case "event_reminders":
+      return Boolean(context?.user) && row.user_id === context.user.id;
+    case "event_reminders":
+      return Boolean(context?.user) && row.user_id === context.user.id;
     case "registrations":
       return Boolean(context?.user) && (row.user_id === context.user.id || canManageRegistrations(context));
     default:
@@ -141,6 +145,8 @@ function canCreateRecord(table, record, context) {
     case "notifications":
       return Boolean(context?.user)
         && (record.user_id === context.user.id || canSendNotifications(context));
+    case "event_reminders":
+      return Boolean(context?.user) && record.user_id === context.user.id;
     case "site_settings":
       return hasRole(context, "admin");
     case "live_matches":
@@ -168,6 +174,8 @@ function canUpdateRow(table, row, context) {
       return Boolean(context?.user) && (row.user_id === context.user.id || canManageRegistrations(context));
     case "notifications":
       return Boolean(context?.user) && (row.user_id === context.user.id || canSendNotifications(context));
+    case "event_reminders":
+      return Boolean(context?.user) && row.user_id === context.user.id;
     case "site_settings":
       return hasRole(context, "admin");
     case "live_matches":
@@ -193,6 +201,8 @@ function canDeleteRow(table, row, context) {
       return Boolean(context?.user) && (row.user_id === context.user.id || canManageRegistrations(context));
     case "notifications":
       return Boolean(context?.user) && (row.user_id === context.user.id || canSendNotifications(context));
+    case "event_reminders":
+      return Boolean(context?.user) && row.user_id === context.user.id;
     case "site_settings":
       return hasRole(context, "admin");
     case "live_matches":
