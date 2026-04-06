@@ -36,7 +36,7 @@ const Navbar = () => {
   ];
 
   const extraNav = [
-    ...(isModerator ? [{ to: "/score-calculator", label: "Scorer", icon: Calculator }] : []),
+    ...((isModerator || isAdmin) ? [{ to: "/score-calculator", label: "Scorer", icon: Calculator }] : []),
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Settings }] : []),
   ];
 

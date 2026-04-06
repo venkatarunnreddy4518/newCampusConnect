@@ -6,7 +6,7 @@ import {
   X, Radio, Crown, Eye, Shield, UserCheck, KeyRound, Video,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 
@@ -467,9 +467,37 @@ const Admin = () => {
   const [newNotif, setNewNotif] = useState("");
   const [sentNotifs, setSentNotifs] = useState<{ message: string; time: string }[]>([]);
 
-  const handleSendNotification = () => {
+  const handleSendNotification = async () => {
     if (!newNotif.trim()) { toast.error("Enter a message"); return; }
-    setSentNotifs([{ message: newNotif, time: "Just now" }, ...sentNotifs]);
+
+    const { data: allProfiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id");
+
+    if (profilesError) {
+      toast.error(profilesError.message);
+      return;
+    }
+
+    const recipients = (allProfiles || []).map((profile: any) => ({
+      user_id: profile.id,
+      title: "Campus Update",
+      message: newNotif.trim(),
+      type: "info",
+    }));
+
+    if (recipients.length === 0) {
+      toast.error("No users found to notify.");
+      return;
+    }
+
+    const { error } = await supabase.from("notifications").insert(recipients);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    setSentNotifs([{ message: newNotif.trim(), time: "Just now" }, ...sentNotifs]);
     setNewNotif("");
     toast.success("Notification sent!");
   };
@@ -1094,3 +1122,4 @@ const Admin = () => {
 };
 
 export default Admin;
+

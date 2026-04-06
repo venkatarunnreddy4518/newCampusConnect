@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 
 export interface DbEvent {
   id: string;
@@ -35,3 +35,4 @@ export function useEvents() {
 
   return { events, loading, refetch: fetchEvents };
 }
+

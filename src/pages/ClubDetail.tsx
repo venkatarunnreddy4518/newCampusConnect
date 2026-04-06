@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -348,3 +348,4 @@ const ClubDetail = () => {
 };
 
 export default ClubDetail;
+

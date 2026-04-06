@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 import { Trophy, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -583,3 +583,4 @@ const LiveScores = () => {
 };
 
 export default LiveScores;
+

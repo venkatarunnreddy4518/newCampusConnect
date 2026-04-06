@@ -1,83 +1,91 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../pages/supabase";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/database/client";
 
-const AuthContext = createContext<any>(null);
+type AuthUser = {
+  id: string;
+  email: string | null;
+  user_metadata?: {
+    full_name?: string;
+  };
+  app_metadata?: {
+    roles?: string[];
+    primary_role?: string;
+    permissions?: unknown[];
+  };
+};
+
+type AuthContextValue = {
+  user: AuthUser | null;
+  loading: boolean;
+  isAdmin: boolean;
+  isModerator: boolean;
+  signOut: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function getRoles(user: AuthUser | null) {
+  return user?.app_metadata?.roles || [];
+}
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAdminStatus = async (userId: string) => {
-      console.log("1. Checking admin status for ID:", userId);
-      
-      // Replace your current fetch with this:
-const { data, error } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('id', userId)
-  .maybeSingle(); // Returns null instead of crashing if user is missing
+    let isMounted = true;
 
-if (error) {
-  console.error("Profile fetch error:", error.message);
-}
-      
-      // Tell TypeScript to relax and let us read the properties
-      const profile = data as any; 
-      
-      console.log("2. Supabase returned Data:", profile, "Error:", error);
-      
-      if (profile && (profile.role === 'admin' || profile.is_admin === true)) {
-        console.log("3. SUCCESS! User is confirmed as Admin.");
-        setIsAdmin(true);
-      } else {
-        console.log("3. FAILED. User is not an admin according to data.");
-        setIsAdmin(false);
+    const loadSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!isMounted) {
+        return;
       }
+      setUser((data.session?.user as AuthUser) ?? null);
       setLoading(false);
     };
 
-    // 1. Check if the user is logged in when the app loads
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdminStatus(session.user.id);
-      } else {
-        setLoading(false);
+    loadSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) {
+        return;
       }
+      setUser((session?.user as AuthUser) ?? null);
+      setLoading(false);
     });
 
-    // 2. Listen for any login or logout events in real-time
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          checkAdminStatus(session.user.id);
-        } else {
-          setIsAdmin(false);
-          setLoading(false);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  return (
-    <AuthContext.Provider value={{
+  const value = useMemo<AuthContextValue>(() => {
+    const roles = getRoles(user);
+
+    return {
       user,
-      isAdmin,
-      isModerator: false,
-      signIn: async () => {}, 
-      signUp: async () => {}, 
-      signOut: async () => await supabase.auth.signOut()
-    }}>
+      loading,
+      isAdmin: roles.includes("admin"),
+      isModerator: roles.includes("moderator"),
+      signOut: async () => {
+        await supabase.auth.signOut();
+      },
+    };
+  }, [loading, user]);
+
+  return (
+    <AuthContext.Provider value={value}>
       {!loading && children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider.");
+  }
+  return context;
 };
+

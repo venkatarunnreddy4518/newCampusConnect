@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, ElementType, ChangeEvent, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/Layout";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -457,3 +457,4 @@ const UserProfile = () => {
 };
 
 export default UserProfile;
+

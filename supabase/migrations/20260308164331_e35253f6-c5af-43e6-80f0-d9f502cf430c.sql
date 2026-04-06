@@ -1,2 +1,0 @@
-ALTER TABLE public.registrations DROP CONSTRAINT registrations_status_check;
-ALTER TABLE public.registrations ADD CONSTRAINT registrations_status_check CHECK (status = ANY (ARRAY['registered', 'attended', 'cancelled', 'approved', 'rejected']));

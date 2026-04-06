@@ -6,7 +6,7 @@ import Layout from "@/components/Layout";
 import EventCard from "@/components/EventCard";
 import { useEvents } from "@/hooks/useEvents";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 
 interface LiveMatch {
   id: string;
@@ -654,3 +654,4 @@ const Index = () => {
 };
 
 export default Index;
+

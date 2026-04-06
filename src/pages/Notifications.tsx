@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 import { Bell, AlertCircle, CheckCircle, Info, LogIn, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -54,8 +54,8 @@ const Notifications = () => {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev]);
+        () => {
+          fetchNotifications();
         }
       )
       .subscribe();
@@ -159,3 +159,4 @@ const Notifications = () => {
 };
 
 export default Notifications;
+

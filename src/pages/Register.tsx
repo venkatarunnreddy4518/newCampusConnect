@@ -7,7 +7,7 @@ import { CheckCircle, History, Calendar, MapPin, Clock, LogIn, Play, Video, User
 import { toast } from "sonner";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/database/client";
 import { Link } from "react-router-dom";
 
 const schema = z.object({
@@ -360,3 +360,4 @@ const Register = () => {
 };
 
 export default Register;
+
