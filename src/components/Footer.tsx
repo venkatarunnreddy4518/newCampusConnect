@@ -1,32 +1,66 @@
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Bell, Calendar, Mail, MapPin, Phone, Trophy } from "lucide-react";
+
+const footerLinks = [
+  { to: "/events", label: "Explore events", icon: Calendar },
+  { to: "/clubs", label: "Join clubs", icon: Trophy },
+  { to: "/notifications", label: "Check alerts", icon: Bell },
+];
 
 const Footer = () => (
-  <footer className="border-t bg-card">
-    <div className="container py-10">
-      <div className="grid gap-8 md:grid-cols-3">
-        <div>
-          <h3 className="font-display text-lg font-bold">CampusConnect</h3>
-          <p className="mt-2 text-sm text-muted-foreground">Your centralized platform for campus events, live scores, and real-time updates.</p>
+  <footer className="border-t border-border/70 bg-primary text-primary-foreground">
+    <div className="container py-14">
+      <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr]">
+        <div className="max-w-xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-primary-foreground/55">
+            Campus Experience Platform
+          </p>
+          <h2 className="mt-3 font-display text-3xl font-black leading-tight sm:text-4xl">
+            One place for events, clubs, alerts, and live campus energy.
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-primary-foreground/70">
+            CampusConnect helps students discover what is happening, apply faster, and stay updated without juggling multiple systems.
+          </p>
         </div>
+
         <div>
-          <h4 className="font-display font-semibold">Quick Links</h4>
-          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            <li><a href="/events" className="hover:text-foreground transition-colors">Events</a></li>
-            <li><a href="/live-scores" className="hover:text-foreground transition-colors">Live Scores</a></li>
-            <li><a href="/register" className="hover:text-foreground transition-colors">Register</a></li>
-          </ul>
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-foreground/55">Navigation</p>
+          <div className="mt-4 space-y-3">
+            {footerLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="flex items-center gap-3 rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 px-4 py-3 text-sm font-medium text-primary-foreground/85 transition-colors hover:bg-primary-foreground/10"
+              >
+                <link.icon className="h-4 w-4" />
+                {link.label}
+              </Link>
+            ))}
+          </div>
         </div>
-        <div>
-          <h4 className="font-display font-semibold">Contact</h4>
-          <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2"><Mail className="h-4 w-4" /> admin@campusconnect.edu</li>
-            <li className="flex items-center gap-2"><Phone className="h-4 w-4" /> +91 98765 43210</li>
-            <li className="flex items-center gap-2"><MapPin className="h-4 w-4" /> University Campus, Main Block</li>
-          </ul>
+
+        <div className="rounded-[28px] border border-primary-foreground/10 bg-primary-foreground/5 p-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary-foreground/55">Contact</p>
+          <div className="mt-4 space-y-4 text-sm text-primary-foreground/80">
+            <p className="flex items-start gap-3">
+              <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+              admin@campusconnect.edu
+            </p>
+            <p className="flex items-start gap-3">
+              <Phone className="mt-0.5 h-4 w-4 shrink-0" />
+              +91 98765 43210
+            </p>
+            <p className="flex items-start gap-3">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+              University Campus, Main Block
+            </p>
+          </div>
         </div>
       </div>
-      <div className="mt-8 border-t pt-6 text-center text-xs text-muted-foreground">
-        © 2026 CampusConnect. All rights reserved.
+
+      <div className="mt-10 flex flex-col gap-2 border-t border-primary-foreground/10 pt-6 text-xs text-primary-foreground/55 sm:flex-row sm:items-center sm:justify-between">
+        <p>Copyright 2026 CampusConnect. All rights reserved.</p>
+        <p>Built for student communities, college teams, and campus organizers.</p>
       </div>
     </div>
   </footer>

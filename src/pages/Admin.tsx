@@ -343,7 +343,7 @@ const Admin = () => {
       user_id: userId,
       title: "Club Application Update",
       message: `Your application to join ${clubName} was not approved at this time.`,
-      type: "alert",
+      type: "danger",
     });
     fetchParticipants();
     toast.success("Member rejected & notified");
@@ -502,36 +502,63 @@ const Admin = () => {
     toast.success("Notification sent!");
   };
 
-  const inputClass = "w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50";
-  const btnPrimary = "rounded-lg bg-primary px-5 py-2.5 font-display text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
-  const btnDanger = "rounded-lg bg-destructive px-3 py-2 text-xs font-medium text-destructive-foreground hover:bg-destructive/90";
-  const btnSecondary = "rounded-lg bg-muted px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/80";
+  const inputClass = "w-full rounded-[20px] border border-border/80 bg-muted/35 px-4 py-3 text-sm text-foreground shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/40";
+  const btnPrimary = "rounded-full bg-primary px-5 py-3 font-display text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60";
+  const btnDanger = "rounded-full bg-destructive px-4 py-2.5 text-xs font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90";
+  const btnSecondary = "rounded-full border border-border bg-muted px-4 py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/80";
 
   return (
     <Layout>
-      <div className="container py-10">
-        <div className="flex items-center gap-2 mb-6">
-          <Settings className="h-7 w-7 text-primary" />
-          <h1 className="font-display text-3xl font-bold">Admin Dashboard</h1>
+      <div className="container space-y-8 py-10">
+        <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-[34px] border border-border/80 bg-primary p-7 text-primary-foreground shadow-card md:p-8">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-primary-foreground/55">Campus control room</p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+                <Settings className="h-6 w-6" />
+              </div>
+              <h1 className="font-display text-3xl font-black md:text-4xl">Admin Dashboard</h1>
+            </div>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-primary-foreground/78">
+              Manage events, clubs, registrations, permissions, notifications, and homepage media from one premium control surface.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { label: "Events", value: String(events.length).padStart(2, "0"), icon: Plus },
+              { label: "Clubs", value: String(clubs.length).padStart(2, "0"), icon: Crown },
+              { label: "Profiles", value: String(profiles.length).padStart(2, "0"), icon: Users },
+            ].map((item) => (
+              <div key={item.label} className="rounded-[30px] border border-border/80 bg-card px-5 py-5 shadow-card">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{item.label}</p>
+                  <item.icon className="h-4 w-4 text-primary" />
+                </div>
+                <p className="mt-4 font-display text-3xl font-black">{item.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 border-b pb-4 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === tab.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
+        <div className="rounded-[32px] border border-border/80 bg-card p-4 shadow-card">
+          <div className="flex flex-wrap gap-2 overflow-x-auto">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
+                  activeTab === tab.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-muted/80"
+                }`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-6">
+        <div className="rounded-[34px] border border-border/80 bg-card p-6 shadow-card md:p-8">
           {/* ════════ EVENTS ════════ */}
           {activeTab === "events" && (
             <div className="space-y-8">
@@ -769,9 +796,9 @@ const Admin = () => {
                   <div className="space-y-3">
                     {/* Pending registrations */}
                     {registrations.filter((r) => r.status === "registered").length > 0 && (
-                      <div className="rounded-xl border-2 border-dashed border-amber-400/40 bg-amber-500/5 p-4">
-                        <h3 className="text-sm font-semibold text-amber-600 mb-3 flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                      <div className="rounded-xl border-2 border-dashed border-border bg-muted/20 p-4">
+                        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                          <span className="h-2 w-2 rounded-full bg-foreground animate-pulse" />
                           Pending Registrations
                         </h3>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -853,9 +880,9 @@ const Admin = () => {
                   <div className="space-y-3">
                     {/* Pending requests first */}
                     {memberships.filter((m) => m.status === "pending").length > 0 && (
-                      <div className="rounded-xl border-2 border-dashed border-amber-400/40 bg-amber-500/5 p-4">
-                        <h3 className="text-sm font-semibold text-amber-600 mb-3 flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                      <div className="rounded-xl border-2 border-dashed border-border bg-muted/20 p-4">
+                        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                          <span className="h-2 w-2 rounded-full bg-foreground animate-pulse" />
                           Pending Requests
                         </h3>
                         <div className="grid gap-3 sm:grid-cols-2">

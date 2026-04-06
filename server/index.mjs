@@ -139,7 +139,8 @@ function canCreateRecord(table, record, context) {
       return Boolean(context?.user)
         && (record.user_id === context.user.id || canManageRegistrations(context));
     case "notifications":
-      return canSendNotifications(context);
+      return Boolean(context?.user)
+        && (record.user_id === context.user.id || canSendNotifications(context));
     case "site_settings":
       return hasRole(context, "admin");
     case "live_matches":

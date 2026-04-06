@@ -1,13 +1,24 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Home, Calendar, Trophy, Bell, Settings, Menu, X, LogIn, LogOut,
-  Crown, Calculator, User, ChevronDown,
+  Bell,
+  Calendar,
+  Calculator,
+  ChevronDown,
+  Crown,
+  Home,
+  LogIn,
+  LogOut,
+  Menu,
+  Settings,
+  Trophy,
+  User,
+  X,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
 
 const Navbar = () => {
   const location = useLocation();
@@ -16,13 +27,13 @@ const Navbar = () => {
   const { user, isAdmin, isModerator, signOut } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close user menu on outside click
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+    const handler = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
@@ -40,117 +51,100 @@ const Navbar = () => {
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Settings }] : []),
   ];
 
+  const allNav = [...mainNav, ...extraNav];
+  const isActive = (path: string) => location.pathname === path;
+
   const handleSignOut = async () => {
     setUserMenuOpen(false);
     await signOut();
     toast.success("Signed out successfully");
   };
 
-  const isActive = (path: string) => location.pathname === path;
-
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/50 bg-card/90 backdrop-blur-xl">
-      <div className="container flex h-14 items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight shrink-0">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
-            <span className="text-xs font-black text-primary-foreground">CC</span>
+    <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-xl">
+      <div className="container flex h-20 items-center justify-between gap-4">
+        <Link to="/" className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-card">
+            <span className="text-sm font-black tracking-[0.2em]">CC</span>
           </div>
-          <span className="hidden sm:inline">CampusConnect</span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-muted-foreground">Campus OS</p>
+            <p className="truncate font-display text-lg font-black">CampusConnect</p>
+          </div>
         </Link>
 
-        {/* Desktop Nav */}
-        <div className="hidden items-center gap-0.5 lg:flex">
-          {mainNav.map((item) => (
+        <div className="hidden items-center gap-1 rounded-full border border-border/70 bg-card/80 p-1.5 shadow-card lg:flex">
+          {allNav.map((item) => (
             <Link
               key={item.to}
               to={item.to}
-              className={`relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
-                isActive(item.to)
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+              className={`relative flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                isActive(item.to) ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <item.icon className="h-3.5 w-3.5" />
-              {item.label}
               {isActive(item.to) && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -bottom-[13px] left-2 right-2 h-0.5 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                <motion.span
+                  layoutId="nav-pill"
+                  className="absolute inset-0 rounded-full bg-primary"
+                  transition={{ type: "spring", stiffness: 480, damping: 34 }}
                 />
               )}
-            </Link>
-          ))}
-
-          {extraNav.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
-                isActive(item.to)
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <item.icon className="h-3.5 w-3.5" />
-              {item.label}
-              {isActive(item.to) && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -bottom-[13px] left-2 right-2 h-0.5 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                />
-              )}
+              <item.icon className="relative z-10 h-4 w-4" />
+              <span className="relative z-10">{item.label}</span>
             </Link>
           ))}
         </div>
 
-        {/* Right side */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
           {user ? (
             <div className="relative" ref={userMenuRef}>
               <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-1 pr-2.5 py-1 text-sm font-medium transition-colors hover:bg-muted"
+                onClick={() => setUserMenuOpen((current) => !current)}
+                className="flex items-center gap-2 rounded-full border border-border/70 bg-card px-2 py-1.5 shadow-sm transition-colors hover:bg-muted"
               >
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <User className="h-3.5 w-3.5" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <User className="h-4 w-4" />
                 </div>
-                <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                <div className="hidden text-left sm:block">
+                  <p className="max-w-28 truncate text-sm font-semibold">{user.user_metadata?.full_name || user.email || "Account"}</p>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
               </button>
 
               <AnimatePresence>
                 {userMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-48 rounded-xl border bg-card p-1.5 shadow-lg z-50"
+                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                    transition={{ duration: 0.16 }}
+                    className="absolute right-0 top-full mt-3 w-56 overflow-hidden rounded-3xl border border-border bg-card p-2 shadow-card"
                   >
                     <Link
                       to={`/profile/${user.id}`}
                       onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      className="flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
                     >
-                      <User className="h-4 w-4" /> My Profile
+                      <User className="h-4 w-4" />
+                      My Profile
                     </Link>
                     <Link
                       to="/register"
                       onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      className="flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
                     >
-                      <Calendar className="h-4 w-4" /> My Registrations
+                      <Calendar className="h-4 w-4" />
+                      My Registrations
                     </Link>
-                    <div className="my-1 h-px bg-border" />
+                    <div className="my-2 h-px bg-border" />
                     <button
                       onClick={handleSignOut}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                      className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
                     >
-                      <LogOut className="h-4 w-4" /> Sign Out
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
                     </button>
                   </motion.div>
                 )}
@@ -159,68 +153,77 @@ const Navbar = () => {
           ) : (
             <Link
               to="/login"
-              className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="hidden rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 hover:bg-primary/92 sm:inline-flex"
             >
-              <LogIn className="h-3.5 w-3.5" /> Login
+              <span className="inline-flex items-center gap-2">
+                <LogIn className="h-4 w-4" />
+                Login
+              </span>
             </Link>
           )}
 
-          {/* Mobile hamburger */}
           <button
-            className="rounded-lg p-1.5 hover:bg-muted lg:hidden"
-            onClick={() => setMobileOpen(!mobileOpen)}
+            onClick={() => setMobileOpen((current) => !current)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-card lg:hidden"
+            aria-label="Toggle navigation"
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t lg:hidden"
+            className="overflow-hidden border-t border-border/70 bg-background lg:hidden"
           >
-            <div className="container flex flex-col gap-0.5 py-3">
-              {[...mainNav, ...extraNav].map((item) => (
+            <div className="container space-y-2 py-4">
+              {allNav.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    isActive(item.to) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${
+                    isActive(item.to) ? "bg-primary text-primary-foreground" : "bg-card text-foreground hover:bg-muted"
                   }`}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
                 </Link>
               ))}
+
               {user ? (
                 <>
                   <Link
                     to={`/profile/${user.id}`}
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
+                    className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3 text-sm font-medium text-foreground hover:bg-muted"
                   >
-                    <User className="h-4 w-4" /> Profile
+                    <User className="h-4 w-4" />
+                    Profile
                   </Link>
                   <button
-                    onClick={() => { handleSignOut(); setMobileOpen(false); }}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      handleSignOut();
+                      setMobileOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-2xl bg-card px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/10"
                   >
-                    <LogOut className="h-4 w-4" /> Sign Out
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
                   </button>
                 </>
               ) : (
                 <Link
                   to="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/10"
+                  className="flex items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
                 >
-                  <LogIn className="h-4 w-4" /> Login
+                  <LogIn className="h-4 w-4" />
+                  Login
                 </Link>
               )}
             </div>
