@@ -33,6 +33,7 @@ The backend will serve the built frontend from `dist/`.
 ## Local Data
 
 - Database file: `.local/campusconnect.sqlite`
+- SQL schema/init file: `database/init.sql`
 - Uploaded files: `uploads/`
 
 The first account you create is automatically granted the `admin` role so you can access the dashboard immediately.
