@@ -189,6 +189,19 @@
     user-select: text;
   }
 
+  /* Style select option elements for better visibility */
+  select option {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    padding: 0.5rem;
+  }
+
+  select option:checked {
+    background: linear-gradient(#2563eb, #2563eb);
+    background-color: #2563eb !important;
+    color: white;
+  }
+
   ::selection {
     background: hsl(var(--foreground) / 0.16);
     color: hsl(var(--background));

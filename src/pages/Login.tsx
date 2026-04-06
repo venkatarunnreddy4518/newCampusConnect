@@ -3,23 +3,28 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/database/client";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
 
-      if (session) {
-        navigate("/", { replace: true });
+        if (data.session?.user?.id) {
+          navigate("/", { replace: true });
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
       }
     };
 
@@ -32,24 +37,36 @@ const Login = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.password,
-          options: {
-            data: { full_name: form.name },
-          },
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: form.email,
+            password: form.password,
+            fullName: form.name,
+          }),
+          credentials: "include",
         });
 
-        if (error) throw error;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || "Sign up failed");
+
         toast.success("Account created! You can now log in.");
         setIsSignUp(false);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: form.email,
-          password: form.password,
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: form.email,
+            password: form.password,
+          }),
+          credentials: "include",
         });
 
-        if (error) throw error;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || "Login failed");
+
         toast.success("Welcome back!");
         navigate("/");
       }
@@ -57,6 +74,30 @@ const Login = () => {
       toast.error(error.message || "An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || "Failed to send reset email");
+
+      toast.success("Password reset email sent! Check your inbox.");
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send reset email");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -204,7 +245,73 @@ const Login = () => {
                   </>
                 )}
               </button>
+
+              {!isSignUp && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-xs font-semibold text-login-link hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
             </form>
+
+            {/* Forgot Password Modal */}
+            {showForgotPassword && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-background rounded-[34px] border border-login-card-border p-8 max-w-md w-full shadow-xl"
+                >
+                  <h3 className="font-display text-2xl font-black text-foreground mb-2">Reset Password</h3>
+                  <p className="text-sm text-login-subtitle mb-6">Enter your email address and we'll send you a link to reset your password.</p>
+
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-4 h-4 w-4 text-login-placeholder" />
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className={inputClass}
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={forgotLoading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-[22px] bg-login-accent py-3.5 font-display text-sm font-semibold text-login-accent-fg transition-all hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
+                    >
+                      {forgotLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          Send Reset Link
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setForgotEmail("");
+                      }}
+                      className="w-full py-2 text-sm font-semibold text-login-link hover:underline"
+                    >
+                      Back to Sign In
+                    </button>
+                  </form>
+                </motion.div>
+              </div>
+            )}
 
             <div className="mt-6 rounded-[24px] bg-login-input/55 px-4 py-4">
               <p className="text-sm text-login-subtitle">

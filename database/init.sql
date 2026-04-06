@@ -14,6 +14,15 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS profiles (
   id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   full_name TEXT,
@@ -64,6 +73,7 @@ CREATE TABLE IF NOT EXISTS events (
   poster_url TEXT,
   trailer_url TEXT,
   max_capacity INTEGER,
+  enable_whatsapp INTEGER NOT NULL DEFAULT 0,
   created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -127,6 +137,32 @@ CREATE TABLE IF NOT EXISTS event_reminders (
   reminder_sent_at TEXT,
   created_at TEXT NOT NULL,
   UNIQUE (registration_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_messages (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  phone_number TEXT NOT NULL,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  message_type TEXT NOT NULL CHECK (
+    message_type IN ('registration', 'reminder', 'cancellation')
+  ),
+  message_body TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (
+    status IN ('pending', 'sent', 'failed')
+  ),
+  whatsapp_message_id TEXT,
+  error_message TEXT,
+  sent_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_settings (
+  id TEXT PRIMARY KEY,
+  key TEXT NOT NULL UNIQUE,
+  value TEXT NOT NULL,
+  description TEXT,
+  updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS site_settings (
@@ -193,6 +229,9 @@ CREATE INDEX IF NOT EXISTS idx_registrations_event_name ON registrations(event_n
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id_created_at ON notifications(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_event_reminders_user_id ON event_reminders(user_id);
 CREATE INDEX IF NOT EXISTS idx_event_reminders_registration_id ON event_reminders(registration_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_user_id ON whatsapp_messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_status ON whatsapp_messages(status);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_event_id ON whatsapp_messages(event_id);
 CREATE INDEX IF NOT EXISTS idx_live_matches_status_created_at ON live_matches(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_match_scorecard_match_id_order ON match_scorecard(match_id, batting_order);
 

@@ -137,10 +137,10 @@ const Admin = () => {
   
 
   // ─── Events ─────────────────────────────────────────────
-  const [newEvent, setNewEvent] = useState({ name: "", date: "", venue: "", description: "", category: "Sports", max_capacity: "" });
+  const [newEvent, setNewEvent] = useState({ name: "", date: "", venue: "", description: "", category: "Sports", max_capacity: "", enable_whatsapp: false });
   const [addingEvent, setAddingEvent] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [editEvent, setEditEvent] = useState({ name: "", date: "", venue: "", description: "", category: "Sports", is_live: false, stream_url: "", max_capacity: "" });
+  const [editEvent, setEditEvent] = useState({ name: "", date: "", venue: "", description: "", category: "Sports", is_live: false, stream_url: "", max_capacity: "", enable_whatsapp: false });
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,9 +150,10 @@ const Admin = () => {
       name: newEvent.name, date: newEvent.date, venue: newEvent.venue,
       description: newEvent.description, category: newEvent.category, is_live: false, created_by: user?.id,
       max_capacity: newEvent.max_capacity ? parseInt(newEvent.max_capacity) : null,
+      enable_whatsapp: newEvent.enable_whatsapp,
     });
     if (error) toast.error("Failed: " + error.message);
-    else { setNewEvent({ name: "", date: "", venue: "", description: "", category: "Sports", max_capacity: "" }); refetch(); toast.success("Event added!"); }
+    else { setNewEvent({ name: "", date: "", venue: "", description: "", category: "Sports", max_capacity: "", enable_whatsapp: false }); refetch(); toast.success("Event added!"); }
     setAddingEvent(false);
   };
 
@@ -164,7 +165,7 @@ const Admin = () => {
 
   const startEditEvent = (ev: typeof events[0]) => {
     setEditingEventId(ev.id);
-    setEditEvent({ name: ev.name, date: ev.date, venue: ev.venue, description: ev.description || "", category: ev.category, is_live: ev.is_live, stream_url: ev.stream_url || "", max_capacity: (ev as any).max_capacity?.toString() || "" });
+    setEditEvent({ name: ev.name, date: ev.date, venue: ev.venue, description: ev.description || "", category: ev.category, is_live: ev.is_live, stream_url: ev.stream_url || "", max_capacity: (ev as any).max_capacity?.toString() || "", enable_whatsapp: (ev as any).enable_whatsapp || false });
   };
 
   const handleSaveEvent = async () => {
@@ -174,6 +175,7 @@ const Admin = () => {
       description: editEvent.description, category: editEvent.category,
       is_live: editEvent.is_live, stream_url: editEvent.stream_url || null,
       max_capacity: editEvent.max_capacity ? parseInt(editEvent.max_capacity) : null,
+      enable_whatsapp: editEvent.enable_whatsapp,
     }).eq("id", editingEventId);
     if (error) toast.error(error.message); else { setEditingEventId(null); refetch(); toast.success("Event updated!"); }
   };
@@ -588,6 +590,10 @@ const Admin = () => {
                   {["Sports", "Technical", "Cultural", "Workshops"].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input type="number" min="0" placeholder="Max Capacity (leave empty = unlimited)" value={newEvent.max_capacity} onChange={(e) => setNewEvent({ ...newEvent, max_capacity: e.target.value })} className={inputClass} />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={newEvent.enable_whatsapp} onChange={(e) => setNewEvent({ ...newEvent, enable_whatsapp: e.target.checked })} className="rounded" />
+                  Enable WhatsApp Notifications for this event
+                </label>
                 <button type="submit" disabled={addingEvent} className={btnPrimary}>{addingEvent ? "Adding..." : "Add Event"}</button>
               </form>
 
@@ -616,6 +622,10 @@ const Admin = () => {
                             <input type="checkbox" checked={editEvent.is_live} onChange={(e) => setEditEvent({ ...editEvent, is_live: e.target.checked })} className="rounded" />
                             Mark as LIVE
                           </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={editEvent.enable_whatsapp} onChange={(e) => setEditEvent({ ...editEvent, enable_whatsapp: e.target.checked })} className="rounded" />
+                            Enable WhatsApp Notifications
+                          </label>
                           <div className="flex gap-2">
                             <button onClick={handleSaveEvent} className={btnPrimary}><Save className="inline h-3.5 w-3.5 mr-1" />Save</button>
                             <button onClick={() => setEditingEventId(null)} className={btnSecondary}>Cancel</button>
@@ -630,6 +640,11 @@ const Admin = () => {
                               {ev.is_live && (
                                 <span className="flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-xs font-semibold text-destructive-foreground">
                                   <span className="h-1.5 w-1.5 rounded-full bg-destructive-foreground animate-pulse-live" /> LIVE
+                                </span>
+                              )}
+                              {(ev as any).enable_whatsapp && (
+                                <span className="flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-700">
+                                  📱 WhatsApp Enabled
                                 </span>
                               )}
                             </div>

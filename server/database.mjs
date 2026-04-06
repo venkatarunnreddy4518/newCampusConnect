@@ -90,6 +90,7 @@ export const TABLES = {
       "poster_url",
       "trailer_url",
       "max_capacity",
+      "enable_whatsapp",
       "created_by",
       "created_at",
       "updated_at",
@@ -105,6 +106,7 @@ export const TABLES = {
       "poster_url",
       "trailer_url",
       "max_capacity",
+      "enable_whatsapp",
     ],
     insertable: [
       "id",
@@ -118,11 +120,12 @@ export const TABLES = {
       "poster_url",
       "trailer_url",
       "max_capacity",
+      "enable_whatsapp",
       "created_by",
       "created_at",
       "updated_at",
     ],
-    booleanColumns: ["is_live"],
+    booleanColumns: ["is_live", "enable_whatsapp"],
   },
   clubs: {
     primaryKey: "id",
@@ -194,6 +197,18 @@ export const TABLES = {
     columns: ["id", "user_id", "registration_id", "event_name", "event_date", "reminder_status", "reminder_sent_at", "created_at"],
     writable: ["reminder_status", "reminder_sent_at"],
     insertable: ["id", "user_id", "registration_id", "event_name", "event_date", "reminder_status", "reminder_sent_at", "created_at"],
+  },
+  whatsapp_messages: {
+    primaryKey: "id",
+    columns: ["id", "user_id", "phone_number", "event_id", "message_type", "message_body", "status", "whatsapp_message_id", "error_message", "sent_at", "created_at"],
+    writable: ["status", "whatsapp_message_id", "error_message", "sent_at"],
+    insertable: ["id", "user_id", "phone_number", "event_id", "message_type", "message_body", "status", "whatsapp_message_id", "error_message", "sent_at", "created_at"],
+  },
+  whatsapp_settings: {
+    primaryKey: "id",
+    columns: ["id", "key", "value", "description", "updated_at"],
+    writable: ["value", "description", "updated_at"],
+    insertable: ["id", "key", "value", "description", "updated_at"],
   },
   site_settings: {
     primaryKey: "key",

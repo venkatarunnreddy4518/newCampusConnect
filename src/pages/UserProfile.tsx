@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   User, Mail, Calendar, GraduationCap, Crown, Trophy, Users,
   Code, Camera, Mic2, Lightbulb, Pencil, Save, X, Plus, Trash2,
-  Github, Linkedin, ExternalLink, Loader2
+  Github, Linkedin, ExternalLink, Loader2, Lock, Eye, EyeOff, Shield
 } from "lucide-react";
 
 // --- Types ---
@@ -81,6 +81,17 @@ const UserProfile = () => {
     achievements: [] as string[],
   });
   const [newAchievement, setNewAchievement] = useState("");
+  
+  // Change Password State
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -216,6 +227,45 @@ const UserProfile = () => {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({ title: "Error", description: "New passwords do not match", variant: "destructive" });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({ title: "Error", description: "New password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || "Failed to change password");
+
+      toast({ title: "Success", description: "Password changed successfully" });
+      setShowChangePassword(false);
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to change password", variant: "destructive" });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -324,9 +374,14 @@ const UserProfile = () => {
                         {profile.full_name || "Anonymous User"}
                       </h1>
                       {isOwnProfile && (
-                        <Button variant="outline" size="sm" onClick={startEditing} className="rounded-full">
-                          <Pencil className="h-3 w-3 mr-2" /> Edit Profile
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={startEditing} className="rounded-full">
+                            <Pencil className="h-3 w-3 mr-2" /> Edit Profile
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setShowChangePassword(true)} className="rounded-full">
+                            <Lock className="h-3 w-3 mr-2" /> Change Password
+                          </Button>
+                        </div>
                       )}
                     </div>
                     
@@ -454,6 +509,131 @@ const UserProfile = () => {
               </div>
             </section>
           )}
+
+        {/* Change Password Modal */}
+        <AnimatePresence>
+          {showChangePassword && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-background rounded-3xl border shadow-xl max-w-md w-full p-8"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Shield className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-lg">Change Password</h2>
+                    <p className="text-xs text-muted-foreground">Update your account security</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  {/* Current Password */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground">Current Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <input
+                        type={showCurrentPassword ? "text" : "password"}
+                        placeholder="Enter current password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground">New Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="Enter new password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground">Confirm Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="Confirm new password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setShowChangePassword(false);
+                        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                      }}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={changingPassword}
+                      className="flex-1"
+                    >
+                      {changingPassword ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Changing...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="h-4 w-4 mr-2" />
+                          Change Password
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         </div>
       </div>
     </Layout>

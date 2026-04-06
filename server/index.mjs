@@ -27,6 +27,9 @@ import {
   signIn,
   signOut,
   signUp,
+  requestPasswordReset,
+  resetPassword,
+  changePassword,
 } from "./auth.mjs";
 
 initializeDatabase();
@@ -118,6 +121,10 @@ function canReadRow(table, row, context) {
       return Boolean(context?.user) && (row.user_id === context.user.id || canManageRegistrations(context));
     case "event_reminders":
       return Boolean(context?.user) && row.user_id === context.user.id;
+    case "whatsapp_messages":
+      return Boolean(context?.user) && (row.user_id === context.user.id || hasRole(context, "admin"));
+    case "whatsapp_settings":
+      return hasRole(context, "admin");
     default:
       return false;
   }
@@ -145,6 +152,10 @@ function canCreateRecord(table, record, context) {
         && (record.user_id === context.user.id || canSendNotifications(context));
     case "event_reminders":
       return Boolean(context?.user) && record.user_id === context.user.id;
+    case "whatsapp_messages":
+      return Boolean(context?.user) && record.user_id === context.user.id;
+    case "whatsapp_settings":
+      return hasRole(context, "admin");
     case "site_settings":
       return hasRole(context, "admin");
     case "live_matches":
@@ -174,6 +185,10 @@ function canUpdateRow(table, row, context) {
       return Boolean(context?.user) && (row.user_id === context.user.id || canSendNotifications(context));
     case "event_reminders":
       return Boolean(context?.user) && row.user_id === context.user.id;
+    case "whatsapp_messages":
+      return Boolean(context?.user) && (row.user_id === context.user.id || hasRole(context, "admin"));
+    case "whatsapp_settings":
+      return hasRole(context, "admin");
     case "site_settings":
       return hasRole(context, "admin");
     case "live_matches":
@@ -201,6 +216,10 @@ function canDeleteRow(table, row, context) {
       return Boolean(context?.user) && (row.user_id === context.user.id || canSendNotifications(context));
     case "event_reminders":
       return Boolean(context?.user) && row.user_id === context.user.id;
+    case "whatsapp_messages":
+      return Boolean(context?.user) && (row.user_id === context.user.id || hasRole(context, "admin"));
+    case "whatsapp_settings":
+      return hasRole(context, "admin");
     case "site_settings":
       return hasRole(context, "admin");
     case "live_matches":
@@ -417,6 +436,28 @@ function prepareInsertRecord(table, input, context) {
         reminder_status: clean.reminder_status ?? "active",
         reminder_sent_at: clean.reminder_sent_at ?? null,
         created_at: clean.created_at ?? now,
+      };
+    case "whatsapp_messages":
+      return {
+        id: clean.id ?? randomUUID(),
+        user_id: clean.user_id,
+        phone_number: clean.phone_number,
+        event_id: clean.event_id,
+        message_type: clean.message_type,
+        message_body: clean.message_body,
+        status: clean.status ?? "pending",
+        whatsapp_message_id: clean.whatsapp_message_id ?? null,
+        error_message: clean.error_message ?? null,
+        sent_at: clean.sent_at ?? null,
+        created_at: clean.created_at ?? now,
+      };
+    case "whatsapp_settings":
+      return {
+        id: clean.id ?? randomUUID(),
+        key: clean.key,
+        value: clean.value,
+        description: clean.description ?? null,
+        updated_at: clean.updated_at ?? now,
       };
     case "site_settings":
       return {
@@ -798,6 +839,40 @@ async function handleAuthRoute(request, response, pathname) {
     });
   }
 
+  if (pathname === "/api/auth/forgot-password" && request.method === "POST") {
+    try {
+      const body = await readJsonBody(request);
+      const result = requestPasswordReset(body);
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Request failed." } });
+    }
+  }
+
+  if (pathname === "/api/auth/reset-password" && request.method === "POST") {
+    try {
+      const body = await readJsonBody(request);
+      const result = resetPassword(body);
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Password reset failed." } });
+    }
+  }
+
+  if (pathname === "/api/auth/change-password" && request.method === "POST") {
+    try {
+      const context = getUserContextFromCookie(request.headers.cookie);
+      if (!context) {
+        return sendJson(response, 401, { error: { message: "Not authenticated." } });
+      }
+      const body = await readJsonBody(request);
+      const result = changePassword({ userId: context.user.id, ...body });
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Change password failed." } });
+    }
+  }
+
   return sendJson(response, 404, { error: { message: "Not found." } });
 }
 
@@ -934,6 +1009,82 @@ function handleUploadFileRoute(response, pathname) {
   }
 }
 
+async function handleWhatsAppRoute(request, response, pathname, context) {
+  if (pathname === "/api/whatsapp/notify-registration" && request.method === "POST") {
+    if (!context?.user) {
+      return sendJson(response, 401, { error: { message: "Unauthorized" } });
+    }
+
+    try {
+      const body = await readJsonBody(request);
+      const { phoneNumber, eventId, eventName, eventDate, eventVenue } = body;
+
+      if (!phoneNumber) {
+        return sendJson(response, 400, { error: { message: "Phone number is required" } });
+      }
+
+      // Check if event has WhatsApp enabled
+      const event = db.prepare("SELECT enable_whatsapp FROM events WHERE id = ?").get(eventId);
+      if (!event || !event.enable_whatsapp) {
+        return sendJson(response, 200, { success: false, message: "WhatsApp not enabled for this event", skipped: true });
+      }
+
+      // Import and call WhatsApp service
+      const { notifyRegistrationViaWhatsApp } = await import("./whatsapp.mjs");
+      const result = await notifyRegistrationViaWhatsApp(
+        context.user.id,
+        phoneNumber,
+        eventId,
+        eventName,
+        eventDate,
+        eventVenue
+      );
+
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Failed to send WhatsApp notification" } });
+    }
+  }
+
+  if (pathname === "/api/whatsapp/notify-reminder" && request.method === "POST") {
+    if (!context?.user) {
+      return sendJson(response, 401, { error: { message: "Unauthorized" } });
+    }
+
+    try {
+      const body = await readJsonBody(request);
+      const { phoneNumber, eventId, eventName, eventDate, eventVenue } = body;
+
+      if (!phoneNumber) {
+        return sendJson(response, 400, { error: { message: "Phone number is required" } });
+      }
+
+      // Check if event has WhatsApp enabled
+      const event = db.prepare("SELECT enable_whatsapp FROM events WHERE id = ?").get(eventId);
+      if (!event || !event.enable_whatsapp) {
+        return sendJson(response, 200, { success: false, message: "WhatsApp not enabled for this event", skipped: true });
+      }
+
+      // Import and call WhatsApp service
+      const { notifyReminderViaWhatsApp } = await import("./whatsapp.mjs");
+      const result = await notifyReminderViaWhatsApp(
+        context.user.id,
+        phoneNumber,
+        eventId,
+        eventName,
+        eventDate,
+        eventVenue
+      );
+
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Failed to send WhatsApp notification" } });
+    }
+  }
+
+  return sendJson(response, 404, { error: { message: "Not found." } });
+}
+
 const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", "http://localhost");
@@ -950,6 +1101,10 @@ const server = http.createServer(async (request, response) => {
 
     if (pathname.startsWith("/api/storage/")) {
       return handleStorageRoute(request, response, pathname, context);
+    }
+
+    if (pathname.startsWith("/api/whatsapp/")) {
+      return handleWhatsAppRoute(request, response, pathname, context);
     }
 
     if (pathname.startsWith("/uploads/")) {

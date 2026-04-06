@@ -239,3 +239,102 @@ export function signOut(sessionId) {
 
   db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
 }
+
+// Generate a secure random token
+function generateResetToken() {
+  return randomUUID() + randomUUID(); // Longer, more secure token
+}
+
+export function requestPasswordReset({ email }) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new Error("Email is required.");
+  }
+
+  const user = db.prepare("SELECT id FROM users WHERE email = ?").get(normalizedEmail);
+
+  if (!user) {
+    // Don't reveal if email exists for security
+    return { success: true };
+  }
+
+  // Invalidate any existing tokens for this user
+  db.prepare("UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0").run(user.id);
+
+  // Create new reset token (valid for 1 hour)
+  const tokenId = randomUUID();
+  const token = generateResetToken();
+  const createdAt = nowIso();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+
+  db.prepare(`
+    INSERT INTO password_reset_tokens (id, user_id, token, expires_at, created_at, used)
+    VALUES (?, ?, ?, ?, ?, 0)
+  `).run(tokenId, user.id, token, expiresAt, createdAt);
+
+  // Return token (in production, send via email)
+  console.log(`[Password Reset] Token for ${normalizedEmail}: ${token}`);
+  return { success: true, token, userId: user.id }; // Return token for testing
+}
+
+export function resetPassword({ token, newPassword }) {
+  if (!token || !newPassword) {
+    throw new Error("Token and password are required.");
+  }
+
+  if (newPassword.length < 6) {
+    throw new Error("Password must be at least 6 characters.");
+  }
+
+  // Find valid reset token
+  const resetRecord = db.prepare(`
+    SELECT user_id FROM password_reset_tokens 
+    WHERE token = ? AND used = 0 AND expires_at > ?
+  `).get(token, nowIso());
+
+  if (!resetRecord) {
+    throw new Error("Invalid or expired reset token.");
+  }
+
+  // Update password and mark token as used
+  runInTransaction(() => {
+    db.prepare(`
+      UPDATE users SET password_hash = ? WHERE id = ?
+    `).run(hashPassword(newPassword), resetRecord.user_id);
+
+    db.prepare(`
+      UPDATE password_reset_tokens SET used = 1 WHERE token = ?
+    `).run(token);
+  });
+
+  return { success: true };
+}
+
+export function changePassword({ userId, currentPassword, newPassword }) {
+  if (!userId || !currentPassword || !newPassword) {
+    throw new Error("All fields are required.");
+  }
+
+  if (newPassword.length < 6) {
+    throw new Error("New password must be at least 6 characters.");
+  }
+
+  // Get user and verify current password
+  const user = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(userId);
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (!verifyPassword(currentPassword, user.password_hash)) {
+    throw new Error("Current password is incorrect.");
+  }
+
+  // Update password
+  db.prepare(`
+    UPDATE users SET password_hash = ? WHERE id = ?
+  `).run(hashPassword(newPassword), userId);
+
+  return { success: true };
+}

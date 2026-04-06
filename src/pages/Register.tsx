@@ -39,6 +39,7 @@ interface DbEventDetail {
   trailer_url: string | null;
   is_live: boolean;
   max_capacity: number | null;
+  enable_whatsapp?: boolean;
 }
 
 const Register = () => {
@@ -58,13 +59,16 @@ const Register = () => {
   const [lastRegistrationId, setLastRegistrationId] = useState<string>("");
   const [showRemindModal, setShowRemindModal] = useState(false);
   const [settingReminder, setSettingReminder] = useState(false);
+  const [enableWhatsApp, setEnableWhatsApp] = useState(false);
 
   const fetchDbEvents = async () => {
-    const { data } = await supabase.from("events").select("id, name, date, venue, description, category, poster_url, trailer_url, is_live, max_capacity").order("date");
+    const { data } = await supabase.from("events").select("id, name, date, venue, description, category, poster_url, trailer_url, is_live, max_capacity, enable_whatsapp").order("date");
     if (data) setDbEvents(data as DbEventDetail[]);
   };
 
-  useEffect(() => { fetchDbEvents(); }, []);
+  useEffect(() => { 
+    fetchDbEvents(); 
+  }, [user]); // Refetch events when user changes
 
   useEffect(() => {
     if (form.eventId && dbEvents.length > 0) {
@@ -82,15 +86,27 @@ const Register = () => {
   }, [form.eventId, dbEvents]);
 
   const fetchRegistrations = async () => {
-    if (!user) return;
+    if (!user) {
+      setRegistrations([]); // Clear when not logged in
+      return;
+    }
     const { data } = await supabase
       .from("registrations")
       .select("*")
+      .eq("user_id", user.id) // Only get THIS user's registrations
       .order("registered_at", { ascending: false });
     if (data) setRegistrations(data as Registration[]);
   };
 
   useEffect(() => {
+    // Reset form and state when user logs out
+    if (!user) {
+      setForm({ name: "", rollNumber: "", department: "", phone: "", eventId: preselected });
+      setSuccess(false);
+      setShowRemindModal(false);
+      setSelectedEvent(null);
+      setLastRegistrationId("");
+    }
     fetchRegistrations();
   }, [user]);
 
@@ -130,6 +146,37 @@ const Register = () => {
     setErrors({});
     if (data && data.length > 0) {
       setLastRegistrationId(data[0].id);
+      
+      // Send WhatsApp registration notification if event has it enabled
+      try {
+        const eventToNotify = dbEvents.find(e => e.id === form.eventId);
+        if (eventToNotify && form.phone && (eventToNotify as any).enable_whatsapp) {
+          console.log('📱 Sending WhatsApp registration for:', eventToNotify.name);
+          const whatsappRes = await fetch("/api/whatsapp/notify-registration", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phoneNumber: form.phone,
+              eventId: eventToNotify.id,
+              eventName: eventToNotify.name,
+              eventDate: eventToNotify.date,
+              eventVenue: eventToNotify.venue,
+            }),
+          });
+          
+          const whatsappData = await whatsappRes.json();
+          console.log('WhatsApp registration response:', whatsappData);
+          
+          if (whatsappRes.ok && whatsappData.success) {
+            console.log('✅ WhatsApp registration sent');
+          } else {
+            console.log('ℹ️ WhatsApp registration skipped:', whatsappData.message);
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ WhatsApp registration error:", err);
+      }
     }
     setSuccess(true);
     setShowRemindModal(true);
@@ -143,18 +190,59 @@ const Register = () => {
     
     setSettingReminder(true);
     try {
-      const { error } = await supabase.from("event_reminders").insert({
+      // Set database reminder
+      const { error: reminderError } = await supabase.from("event_reminders").insert({
         user_id: user.id,
         registration_id: lastRegistrationId,
         event_name: selectedEvent.name,
         event_date: selectedEvent.date,
       });
 
-      if (error) throw error;
+      if (reminderError) throw reminderError;
+      console.log('✅ Reminder set in database for:', selectedEvent.name);
       
+      // Send WhatsApp notification if enabled and checkbox is checked
+      let whatsappSent = false;
+      if (enableWhatsApp && form.phone && selectedEvent) {
+        try {
+          console.log('📱 Sending WhatsApp reminder to:', form.phone);
+          const whatsappRes = await fetch("/api/whatsapp/notify-reminder", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phoneNumber: form.phone,
+              eventId: selectedEvent.id,
+              eventName: selectedEvent.name,
+              eventDate: selectedEvent.date,
+              eventVenue: selectedEvent.venue,
+            }),
+          });
+          
+          const whatsappData = await whatsappRes.json();
+          console.log('WhatsApp response:', whatsappData);
+          
+          if (whatsappRes.ok && whatsappData.success) {
+            whatsappSent = true;
+            console.log('✅ WhatsApp reminder sent successfully');
+          } else {
+            console.warn("❌ WhatsApp notification failed:", whatsappData);
+          }
+        } catch (err) {
+          console.warn("❌ WhatsApp API error:", err);
+        }
+      }
+      
+      // Show toasts
       toast.success(`Reminder set for ${selectedEvent.name}! You'll get an email notification.`);
+      if (whatsappSent) {
+        toast.success("📱 WhatsApp reminder sent! You'll also receive a message on WhatsApp.", { duration: 3000 });
+      }
+      
       setShowRemindModal(false);
+      setEnableWhatsApp(false); // Reset checkbox for next registration
     } catch (err: any) {
+      console.error("❌ Reminder error:", err);
       toast.error("Failed to set reminder: " + err.message);
     } finally {
       setSettingReminder(false);
@@ -217,6 +305,27 @@ const Register = () => {
                       </p>
                     </div>
                   </div>
+                  
+                  {form.phone && selectedEvent?.enable_whatsapp && (
+                    <label className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 cursor-pointer hover:bg-green-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={enableWhatsApp}
+                        onChange={(e) => setEnableWhatsApp(e.target.checked)}
+                        className="h-4 w-4 rounded"
+                      />
+                      <div className="text-left text-sm flex-1">
+                        <p className="font-medium text-green-900">📱 Also notify via WhatsApp</p>
+                        <p className="text-xs text-green-700">Send reminder to {form.phone}</p>
+                      </div>
+                    </label>
+                  )}
+                  
+                  {form.phone && !selectedEvent?.enable_whatsapp && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-left text-xs text-slate-600">
+                      💡 <span className="font-medium">WhatsApp notifications</span> are not available for this event
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-6 flex gap-3">
