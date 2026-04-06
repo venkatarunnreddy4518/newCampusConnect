@@ -191,27 +191,9 @@ export const TABLES = {
   },
   event_reminders: {
     primaryKey: "id",
-    columns: [
-      "id",
-      "user_id",
-      "registration_id",
-      "event_name",
-      "event_date",
-      "reminder_status",
-      "reminder_sent_at",
-      "created_at",
-    ],
+    columns: ["id", "user_id", "registration_id", "event_name", "event_date", "reminder_status", "reminder_sent_at", "created_at"],
     writable: ["reminder_status", "reminder_sent_at"],
-    insertable: [
-      "id",
-      "user_id",
-      "registration_id",
-      "event_name",
-      "event_date",
-      "reminder_status",
-      "reminder_sent_at",
-      "created_at",
-    ],
+    insertable: ["id", "user_id", "registration_id", "event_name", "event_date", "reminder_status", "reminder_sent_at", "created_at"],
   },
   site_settings: {
     primaryKey: "key",
@@ -346,7 +328,8 @@ export const TABLES = {
 export const db = new DatabaseSync(DB_PATH);
 
 db.exec("PRAGMA foreign_keys = ON;");
-db.exec("PRAGMA journal_mode = WAL;");
+db.exec("PRAGMA journal_mode = DELETE;");
+db.exec("PRAGMA synchronous = NORMAL;");
 
 export function nowIso() {
   return new Date().toISOString();

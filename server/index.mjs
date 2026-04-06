@@ -114,12 +114,10 @@ function canReadRow(table, row, context) {
       return Boolean(context?.user) && (hasRole(context, "admin") || row.user_id === context.user.id);
     case "notifications":
       return Boolean(context?.user) && row.user_id === context.user.id;
-    case "event_reminders":
-      return Boolean(context?.user) && row.user_id === context.user.id;
-    case "event_reminders":
-      return Boolean(context?.user) && row.user_id === context.user.id;
     case "registrations":
       return Boolean(context?.user) && (row.user_id === context.user.id || canManageRegistrations(context));
+    case "event_reminders":
+      return Boolean(context?.user) && row.user_id === context.user.id;
     default:
       return false;
   }
@@ -407,6 +405,17 @@ function prepareInsertRecord(table, input, context) {
         message: clean.message,
         type: clean.type ?? "info",
         is_read: clean.is_read ?? false,
+        created_at: clean.created_at ?? now,
+      };
+    case "event_reminders":
+      return {
+        id: clean.id ?? randomUUID(),
+        user_id: clean.user_id,
+        registration_id: clean.registration_id,
+        event_name: clean.event_name,
+        event_date: clean.event_date,
+        reminder_status: clean.reminder_status ?? "active",
+        reminder_sent_at: clean.reminder_sent_at ?? null,
         created_at: clean.created_at ?? now,
       };
     case "site_settings":
