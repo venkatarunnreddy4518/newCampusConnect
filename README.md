@@ -21,6 +21,18 @@ This starts:
 - Vite on `http://localhost:8080`
 - The backend/API on `http://localhost:3001`
 
+Optional (Python/Flask example API):
+
+```bash
+cd backend_flask
+python -m venv .venv
+.venv\\Scripts\\Activate.ps1
+pip install -r requirements.txt
+python run.py
+```
+
+Then visit `http://127.0.0.1:5000/health`.
+
 ## Production Build
 
 ```bash

@@ -1,7 +1,10 @@
-import { DatabaseSync } from "node:sqlite";
+import mysql from "mysql2/promise";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -340,25 +343,134 @@ export const TABLES = {
   },
 };
 
-export const db = new DatabaseSync(DB_PATH);
+// MySQL connection pool
+let pool = null;
 
-db.exec("PRAGMA foreign_keys = ON;");
-db.exec("PRAGMA journal_mode = DELETE;");
-db.exec("PRAGMA synchronous = NORMAL;");
+async function getPool() {
+  if (pool) {
+    return pool;
+  }
+
+  const config = {
+    host: process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DB_PORT || "3306"),
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "campusconnect",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelayMs: 0,
+    decimalNumbers: true,
+  };
+
+  pool = await mysql.createPool(config);
+  return pool;
+}
+
+// SQLite-compatible wrapper for MySQL
+export class DatabaseWrapper {
+  prepare(sql) {
+    return {
+      get: async (...params) => {
+        try {
+          const pool = await getPool();
+          const connection = await pool.getConnection();
+          try {
+            const [rows] = await connection.execute(sql, params);
+            return rows && rows.length > 0 ? rows[0] : undefined;
+          } finally {
+            connection.release();
+          }
+        } catch (error) {
+          console.error("Database error:", error);
+          throw error;
+        }
+      },
+      all: async (...params) => {
+        try {
+          const pool = await getPool();
+          const connection = await pool.getConnection();
+          try {
+            const [rows] = await connection.execute(sql, params);
+            return rows || [];
+          } finally {
+            connection.release();
+          }
+        } catch (error) {
+          console.error("Database error:", error);
+          throw error;
+        }
+      },
+      run: async (...params) => {
+        try {
+          const pool = await getPool();
+          const connection = await pool.getConnection();
+          try {
+            const result = await connection.execute(sql, params);
+            return {
+              changes: result[0].affectedRows,
+              lastID: result[0].insertId,
+            };
+          } finally {
+            connection.release();
+          }
+        } catch (error) {
+          console.error("Database error:", error);
+          throw error;
+        }
+      },
+    };
+  }
+
+  async exec(sql) {
+    try {
+      const pool = await getPool();
+      const connection = await pool.getConnection();
+      try {
+        await connection.query(sql);
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      console.error("Database exec error:", error);
+      // Ignore errors for already-existing tables
+      if (!error.message.includes("already exists") && !error.message.includes("ER_TABLE_EXISTS_ERROR")) {
+        throw error;
+      }
+    }
+  }
+
+  async close() {
+    if (pool) {
+      await pool.end();
+      pool = null;
+    }
+  }
+}
+
+export const db = new DatabaseWrapper();
+
+db.exec("SET FOREIGN_KEY_CHECKS = 1;");
 
 export function nowIso() {
   return new Date().toISOString();
 }
 
-export function runInTransaction(callback) {
-  db.exec("BEGIN");
+export async function runInTransaction(callback) {
+  const pool = await getPool();
+  const connection = await pool.getConnection();
   try {
-    const result = callback();
-    db.exec("COMMIT");
+    await connection.beginTransaction();
+    const result = await callback();
+    await connection.commit();
     return result;
   } catch (error) {
-    db.exec("ROLLBACK");
+    await connection.rollback();
     throw error;
+  } finally {
+    connection.release();
   }
 }
 
@@ -440,9 +552,37 @@ export function serializeRecord(table, record) {
   return output;
 }
 
-export function initializeDatabase() {
-  const sql = readFileSync(SQL_INIT_PATH, "utf8");
-  db.exec(sql);
+export async function initializeDatabase() {
+  try {
+    const sql = readFileSync(SQL_INIT_PATH, "utf8");
+    // Split SQL into individual statements
+    const statements = sql.split(";").filter(stmt => stmt.trim());
+    
+    const pool = await getPool();
+    const connection = await pool.getConnection();
+    try {
+      for (const statement of statements) {
+        const trimmed = statement.trim();
+        if (trimmed) {
+          try {
+            await connection.query(trimmed);
+          } catch (error) {
+            // Ignore "already exists" errors
+            if (!error.message.includes("already exists") && !error.message.includes("ER_TABLE_EXISTS_ERROR")) {
+              console.error("Error executing statement:", trimmed.substring(0, 100));
+              console.error(error);
+            }
+          }
+        }
+      }
+    } finally {
+      connection.release();
+    }
+    console.log("Database initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+    throw error;
+  }
 }
 
 export function fileExists(filepath) {
