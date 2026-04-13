@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import mysql from "mysql2/promise";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -345,6 +346,7 @@ export const TABLES = {
 
 // MySQL connection pool
 let pool = null;
+const transactionStorage = new AsyncLocalStorage();
 
 async function getPool() {
   if (pool) {
@@ -361,12 +363,27 @@ async function getPool() {
     connectionLimit: 10,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelayMs: 0,
+    keepAliveInitialDelay: 0,
     decimalNumbers: true,
   };
 
   pool = await mysql.createPool(config);
   return pool;
+}
+
+async function withConnection(callback) {
+  const activeConnection = transactionStorage.getStore();
+  if (activeConnection) {
+    return callback(activeConnection);
+  }
+
+  const resolvedPool = await getPool();
+  const connection = await resolvedPool.getConnection();
+  try {
+    return await callback(connection);
+  } finally {
+    connection.release();
+  }
 }
 
 // SQLite-compatible wrapper for MySQL
@@ -375,14 +392,10 @@ export class DatabaseWrapper {
     return {
       get: async (...params) => {
         try {
-          const pool = await getPool();
-          const connection = await pool.getConnection();
-          try {
+          return await withConnection(async (connection) => {
             const [rows] = await connection.execute(sql, params);
             return rows && rows.length > 0 ? rows[0] : undefined;
-          } finally {
-            connection.release();
-          }
+          });
         } catch (error) {
           console.error("Database error:", error);
           throw error;
@@ -390,14 +403,10 @@ export class DatabaseWrapper {
       },
       all: async (...params) => {
         try {
-          const pool = await getPool();
-          const connection = await pool.getConnection();
-          try {
+          return await withConnection(async (connection) => {
             const [rows] = await connection.execute(sql, params);
             return rows || [];
-          } finally {
-            connection.release();
-          }
+          });
         } catch (error) {
           console.error("Database error:", error);
           throw error;
@@ -405,17 +414,13 @@ export class DatabaseWrapper {
       },
       run: async (...params) => {
         try {
-          const pool = await getPool();
-          const connection = await pool.getConnection();
-          try {
-            const result = await connection.execute(sql, params);
+          return await withConnection(async (connection) => {
+            const [result] = await connection.execute(sql, params);
             return {
-              changes: result[0].affectedRows,
-              lastID: result[0].insertId,
+              changes: result.affectedRows ?? 0,
+              lastID: result.insertId ?? 0,
             };
-          } finally {
-            connection.release();
-          }
+          });
         } catch (error) {
           console.error("Database error:", error);
           throw error;
@@ -426,13 +431,9 @@ export class DatabaseWrapper {
 
   async exec(sql) {
     try {
-      const pool = await getPool();
-      const connection = await pool.getConnection();
-      try {
+      await withConnection(async (connection) => {
         await connection.query(sql);
-      } finally {
-        connection.release();
-      }
+      });
     } catch (error) {
       console.error("Database exec error:", error);
       // Ignore errors for already-existing tables
@@ -452,18 +453,16 @@ export class DatabaseWrapper {
 
 export const db = new DatabaseWrapper();
 
-db.exec("SET FOREIGN_KEY_CHECKS = 1;");
-
 export function nowIso() {
   return new Date().toISOString();
 }
 
 export async function runInTransaction(callback) {
-  const pool = await getPool();
-  const connection = await pool.getConnection();
+  const resolvedPool = await getPool();
+  const connection = await resolvedPool.getConnection();
   try {
     await connection.beginTransaction();
-    const result = await callback();
+    const result = await transactionStorage.run(connection, () => callback(connection));
     await connection.commit();
     return result;
   } catch (error) {

@@ -62,17 +62,17 @@ export function getPrimaryRole(roles) {
   return "user";
 }
 
-export function getUserRoles(userId) {
-  const rows = db.prepare("SELECT role FROM user_roles WHERE user_id = ?").all(userId);
+export async function getUserRoles(userId) {
+  const rows = await db.prepare("SELECT role FROM user_roles WHERE user_id = ?").all(userId);
   return rows.map((row) => row.role);
 }
 
-export function getUserPermissions(userId) {
+export async function getUserPermissions(userId) {
   return db.prepare("SELECT * FROM permissions WHERE user_id = ?").all(userId);
 }
 
-function buildSessionPayload(userId) {
-  const user = db.prepare(`
+async function buildSessionPayload(userId) {
+  const user = await db.prepare(`
     SELECT users.id, users.email, profiles.full_name
     FROM users
     LEFT JOIN profiles ON profiles.id = users.id
@@ -83,8 +83,10 @@ function buildSessionPayload(userId) {
     return null;
   }
 
-  const roles = getUserRoles(userId);
-  const permissions = getUserPermissions(userId);
+  const [roles, permissions] = await Promise.all([
+    getUserRoles(userId),
+    getUserPermissions(userId),
+  ]);
 
   return {
     user: {
@@ -103,7 +105,7 @@ function buildSessionPayload(userId) {
   };
 }
 
-export function getUserContextFromCookie(cookieHeader = "") {
+export async function getUserContextFromCookie(cookieHeader = "") {
   const cookies = parseCookies(cookieHeader);
   const sessionId = cookies[SESSION_COOKIE];
 
@@ -111,7 +113,7 @@ export function getUserContextFromCookie(cookieHeader = "") {
     return null;
   }
 
-  const session = db.prepare(`
+  const session = await db.prepare(`
     SELECT sessions.id, sessions.user_id, sessions.expires_at, users.email
     FROM sessions
     JOIN users ON users.id = sessions.user_id
@@ -123,9 +125,14 @@ export function getUserContextFromCookie(cookieHeader = "") {
   }
 
   if (Date.parse(session.expires_at) <= Date.now()) {
-    db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
+    await db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
     return null;
   }
+
+  const [roles, permissions] = await Promise.all([
+    getUserRoles(session.user_id),
+    getUserPermissions(session.user_id),
+  ]);
 
   return {
     sessionId: session.id,
@@ -133,36 +140,36 @@ export function getUserContextFromCookie(cookieHeader = "") {
       id: session.user_id,
       email: session.email,
     },
-    roles: getUserRoles(session.user_id),
-    permissions: getUserPermissions(session.user_id),
+    roles,
+    permissions,
   };
 }
 
-export function getSessionFromCookie(cookieHeader = "") {
-  const context = getUserContextFromCookie(cookieHeader);
+export async function getSessionFromCookie(cookieHeader = "") {
+  const context = await getUserContextFromCookie(cookieHeader);
   if (!context) {
     return null;
   }
   return buildSessionPayload(context.user.id);
 }
 
-function createSession(userId) {
+async function createSession(userId) {
   const sessionId = randomUUID();
   const createdAt = nowIso();
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO sessions (id, user_id, created_at, expires_at)
     VALUES (?, ?, ?, ?)
   `).run(sessionId, userId, createdAt, expiresAt);
 
   return {
     sessionId,
-    session: buildSessionPayload(userId),
+    session: await buildSessionPayload(userId),
   };
 }
 
-export function signUp({ email, password, fullName }) {
+export async function signUp({ email, password, fullName }) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const normalizedName = String(fullName || "").trim();
 
@@ -174,22 +181,23 @@ export function signUp({ email, password, fullName }) {
     throw new Error("Password must be at least 6 characters.");
   }
 
-  const existingUser = db.prepare("SELECT id FROM users WHERE email = ?").get(normalizedEmail);
+  const existingUser = await db.prepare("SELECT id FROM users WHERE email = ?").get(normalizedEmail);
   if (existingUser) {
     throw new Error("An account with this email already exists.");
   }
 
-  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const userCountRow = await db.prepare("SELECT COUNT(*) AS count FROM users").get();
+  const userCount = Number(userCountRow?.count ?? 0);
   const userId = randomUUID();
   const createdAt = nowIso();
 
-  runInTransaction(() => {
-    db.prepare(`
+  await runInTransaction(async () => {
+    await db.prepare(`
       INSERT INTO users (id, email, password_hash, created_at)
       VALUES (?, ?, ?, ?)
     `).run(userId, normalizedEmail, hashPassword(password), createdAt);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO profiles (
         id,
         full_name,
@@ -206,7 +214,7 @@ export function signUp({ email, password, fullName }) {
     `).run(userId, normalizedName || "New User", normalizedEmail, createdAt, createdAt);
 
     if (userCount === 0) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO user_roles (id, user_id, role)
         VALUES (?, ?, 'admin')
       `).run(randomUUID(), userId);
@@ -216,14 +224,14 @@ export function signUp({ email, password, fullName }) {
   return createSession(userId);
 }
 
-export function signIn({ email, password }) {
+export async function signIn({ email, password }) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
   if (!normalizedEmail || !password) {
     throw new Error("Email and password are required.");
   }
 
-  const user = db.prepare("SELECT * FROM users WHERE email = ?").get(normalizedEmail);
+  const user = await db.prepare("SELECT * FROM users WHERE email = ?").get(normalizedEmail);
 
   if (!user || !verifyPassword(password, user.password_hash)) {
     throw new Error("Invalid email or password.");
@@ -232,12 +240,12 @@ export function signIn({ email, password }) {
   return createSession(user.id);
 }
 
-export function signOut(sessionId) {
+export async function signOut(sessionId) {
   if (!sessionId) {
     return;
   }
 
-  db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
+  await db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
 }
 
 // Generate a secure random token
@@ -245,14 +253,14 @@ function generateResetToken() {
   return randomUUID() + randomUUID(); // Longer, more secure token
 }
 
-export function requestPasswordReset({ email }) {
+export async function requestPasswordReset({ email }) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
   if (!normalizedEmail) {
     throw new Error("Email is required.");
   }
 
-  const user = db.prepare("SELECT id FROM users WHERE email = ?").get(normalizedEmail);
+  const user = await db.prepare("SELECT id FROM users WHERE email = ?").get(normalizedEmail);
 
   if (!user) {
     // Don't reveal if email exists for security
@@ -260,7 +268,7 @@ export function requestPasswordReset({ email }) {
   }
 
   // Invalidate any existing tokens for this user
-  db.prepare("UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0").run(user.id);
+  await db.prepare("UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0").run(user.id);
 
   // Create new reset token (valid for 1 hour)
   const tokenId = randomUUID();
@@ -268,7 +276,7 @@ export function requestPasswordReset({ email }) {
   const createdAt = nowIso();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO password_reset_tokens (id, user_id, token, expires_at, created_at, used)
     VALUES (?, ?, ?, ?, ?, 0)
   `).run(tokenId, user.id, token, expiresAt, createdAt);
@@ -278,7 +286,7 @@ export function requestPasswordReset({ email }) {
   return { success: true, token, userId: user.id }; // Return token for testing
 }
 
-export function resetPassword({ token, newPassword }) {
+export async function resetPassword({ token, newPassword }) {
   if (!token || !newPassword) {
     throw new Error("Token and password are required.");
   }
@@ -288,7 +296,7 @@ export function resetPassword({ token, newPassword }) {
   }
 
   // Find valid reset token
-  const resetRecord = db.prepare(`
+  const resetRecord = await db.prepare(`
     SELECT user_id FROM password_reset_tokens 
     WHERE token = ? AND used = 0 AND expires_at > ?
   `).get(token, nowIso());
@@ -298,12 +306,12 @@ export function resetPassword({ token, newPassword }) {
   }
 
   // Update password and mark token as used
-  runInTransaction(() => {
-    db.prepare(`
+  await runInTransaction(async () => {
+    await db.prepare(`
       UPDATE users SET password_hash = ? WHERE id = ?
     `).run(hashPassword(newPassword), resetRecord.user_id);
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE password_reset_tokens SET used = 1 WHERE token = ?
     `).run(token);
   });
@@ -311,7 +319,7 @@ export function resetPassword({ token, newPassword }) {
   return { success: true };
 }
 
-export function changePassword({ userId, currentPassword, newPassword }) {
+export async function changePassword({ userId, currentPassword, newPassword }) {
   if (!userId || !currentPassword || !newPassword) {
     throw new Error("All fields are required.");
   }
@@ -321,7 +329,7 @@ export function changePassword({ userId, currentPassword, newPassword }) {
   }
 
   // Get user and verify current password
-  const user = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(userId);
+  const user = await db.prepare("SELECT password_hash FROM users WHERE id = ?").get(userId);
 
   if (!user) {
     throw new Error("User not found.");
@@ -332,7 +340,7 @@ export function changePassword({ userId, currentPassword, newPassword }) {
   }
 
   // Update password
-  db.prepare(`
+  await db.prepare(`
     UPDATE users SET password_hash = ? WHERE id = ?
   `).run(hashPassword(newPassword), userId);
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import {
@@ -31,8 +31,6 @@ import {
   resetPassword,
   changePassword,
 } from "./auth.mjs";
-
-initializeDatabase();
 
 const PORT = Number(process.env.PORT || 3001);
 const PUBLIC_TABLES = new Set(["events", "clubs", "club_memberships", "site_settings", "live_matches", "match_scorecard"]);
@@ -295,24 +293,26 @@ function buildFilterClause(table, filters = []) {
   };
 }
 
-function queryRows(table, filters = []) {
+async function queryRows(table, filters = []) {
   assertTable(table);
   const { sql, params } = buildFilterClause(table, filters);
   const statement = db.prepare(`SELECT * FROM ${table} ${sql}`);
-  return normalizeRecords(table, statement.all(...params));
+  const rows = await statement.all(...params);
+  return normalizeRecords(table, rows);
 }
 
-function getRowByPrimaryKey(table, value) {
+async function getRowByPrimaryKey(table, value) {
   const config = assertTable(table);
   const statement = db.prepare(`SELECT * FROM ${table} WHERE ${config.primaryKey} = ?`);
-  return normalizeRecord(table, statement.get(value));
+  const row = await statement.get(value);
+  return normalizeRecord(table, row);
 }
 
-function transformSelectedRows(table, rows, columns) {
+async function transformSelectedRows(table, rows, columns) {
   if (table === "club_memberships" && typeof columns === "string" && columns.includes("club:clubs(")) {
     const clubIds = [...new Set(rows.map((row) => row.club_id))];
     const clubs = clubIds.length > 0
-      ? queryRows("clubs", [{ type: "in", column: "id", value: clubIds }])
+      ? await queryRows("clubs", [{ type: "in", column: "id", value: clubIds }])
       : [];
     const clubMap = new Map(clubs.map((club) => [club.id, {
       id: club.id,
@@ -379,6 +379,7 @@ function prepareInsertRecord(table, input, context) {
         poster_url: clean.poster_url ?? null,
         trailer_url: clean.trailer_url ?? null,
         max_capacity: clean.max_capacity ?? null,
+        enable_whatsapp: clean.enable_whatsapp ?? false,
         created_by: clean.created_by ?? context?.user?.id ?? null,
         created_at: clean.created_at ?? now,
         updated_at: clean.updated_at ?? now,
@@ -533,7 +534,7 @@ function prepareUpdatedRecord(table, row, updates) {
   return next;
 }
 
-function insertRow(table, row) {
+async function insertRow(table, row) {
   const serialized = serializeRecord(table, row);
   const keys = Object.keys(serialized);
   const values = keys.map((key) => serialized[key]);
@@ -542,10 +543,10 @@ function insertRow(table, row) {
     INSERT INTO ${table} (${keys.join(", ")})
     VALUES (${placeholders})
   `);
-  statement.run(...values);
+  await statement.run(...values);
 }
 
-function updateRow(table, row) {
+async function updateRow(table, row) {
   const config = assertTable(table);
   const serialized = serializeRecord(table, row);
   const keys = Object.keys(serialized).filter((key) => key !== config.primaryKey);
@@ -556,25 +557,25 @@ function updateRow(table, row) {
     SET ${assignments}
     WHERE ${config.primaryKey} = ?
   `);
-  statement.run(...values, serialized[config.primaryKey]);
+  await statement.run(...values, serialized[config.primaryKey]);
 }
 
-function deleteRows(table, rows) {
+async function deleteRows(table, rows) {
   const config = assertTable(table);
   const statement = db.prepare(`
     DELETE FROM ${table}
     WHERE ${config.primaryKey} = ?
   `);
 
-  runInTransaction(() => {
+  await runInTransaction(async () => {
     for (const row of rows) {
-      statement.run(row[config.primaryKey]);
+      await statement.run(row[config.primaryKey]);
     }
   });
 }
 
-function selectRecords(table, payload, context) {
-  let rows = queryRows(table, payload.filters || []).filter((row) => canReadRow(table, row, context));
+async function selectRecords(table, payload, context) {
+  let rows = (await queryRows(table, payload.filters || [])).filter((row) => canReadRow(table, row, context));
 
   if (payload.orderBy?.column) {
     assertColumn(table, payload.orderBy.column);
@@ -590,7 +591,7 @@ function selectRecords(table, payload, context) {
     return { data: null, count: rows.length, error: null };
   }
 
-  const transformed = transformSelectedRows(table, rows, payload.columns);
+  const transformed = await transformSelectedRows(table, rows, payload.columns);
 
   if (payload.single) {
     return transformed.length > 0
@@ -609,7 +610,7 @@ function selectRecords(table, payload, context) {
   };
 }
 
-function insertRecords(table, payload, context) {
+async function insertRecords(table, payload, context) {
   const items = Array.isArray(payload.values) ? payload.values : [payload.values];
   const prepared = items.map((item) => prepareInsertRecord(table, item, context));
 
@@ -619,9 +620,9 @@ function insertRecords(table, payload, context) {
     }
   }
 
-  runInTransaction(() => {
+  await runInTransaction(async () => {
     for (const item of prepared) {
-      insertRow(table, item);
+      await insertRow(table, item);
     }
   });
 
@@ -630,7 +631,9 @@ function insertRecords(table, payload, context) {
   }
 
   const config = assertTable(table);
-  const inserted = prepared.map((item) => getRowByPrimaryKey(table, item[config.primaryKey]));
+  const inserted = await Promise.all(
+    prepared.map((item) => getRowByPrimaryKey(table, item[config.primaryKey])),
+  );
 
   if (payload.single) {
     return { data: inserted[0] ?? null, error: null };
@@ -639,43 +642,43 @@ function insertRecords(table, payload, context) {
   return { data: inserted, error: null };
 }
 
-function updateRecords(table, payload, context) {
+async function updateRecords(table, payload, context) {
   if (!payload.filters || payload.filters.length === 0) {
     return { data: null, error: { message: "Updates require at least one filter." } };
   }
 
-  const candidates = queryRows(table, payload.filters);
+  const candidates = await queryRows(table, payload.filters);
   const authorized = candidates.filter((row) => canUpdateRow(table, row, context));
 
   if (authorized.length === 0) {
     return { data: null, error: { message: "No matching records could be updated." } };
   }
 
-  runInTransaction(() => {
+  await runInTransaction(async () => {
     for (const row of authorized) {
-      updateRow(table, prepareUpdatedRecord(table, row, payload.values || {}));
+      await updateRow(table, prepareUpdatedRecord(table, row, payload.values || {}));
     }
   });
   return { data: null, error: null };
 }
 
-function deleteRecords(table, payload, context) {
+async function deleteRecords(table, payload, context) {
   if (!payload.filters || payload.filters.length === 0) {
     return { data: null, error: { message: "Deletes require at least one filter." } };
   }
 
-  const candidates = queryRows(table, payload.filters);
+  const candidates = await queryRows(table, payload.filters);
   const authorized = candidates.filter((row) => canDeleteRow(table, row, context));
 
   if (authorized.length === 0) {
     return { data: null, error: { message: "No matching records could be deleted." } };
   }
 
-  deleteRows(table, authorized);
+  await deleteRows(table, authorized);
   return { data: null, error: null };
 }
 
-function upsertRecords(table, payload, context) {
+async function upsertRecords(table, payload, context) {
   const config = assertTable(table);
   const items = Array.isArray(payload.values) ? payload.values : [payload.values];
 
@@ -685,9 +688,9 @@ function upsertRecords(table, payload, context) {
       return { data: null, error: { message: "Upsert requires a primary key." } };
     }
 
-    const existing = getRowByPrimaryKey(table, key);
+    const existing = await getRowByPrimaryKey(table, key);
     if (!existing) {
-      const insertResult = insertRecords(table, { values: item, returning: false }, context);
+      const insertResult = await insertRecords(table, { values: item, returning: false }, context);
       if (insertResult.error) {
         return insertResult;
       }
@@ -698,7 +701,7 @@ function upsertRecords(table, payload, context) {
       return { data: null, error: { message: "You are not allowed to update this record." } };
     }
 
-    updateRow(table, prepareUpdatedRecord(table, existing, item));
+    await updateRow(table, prepareUpdatedRecord(table, existing, item));
   }
 
   return { data: null, error: null };
@@ -804,13 +807,14 @@ async function readBufferBody(request) {
 
 async function handleAuthRoute(request, response, pathname) {
   if (pathname === "/api/auth/session" && request.method === "GET") {
-    return sendJson(response, 200, { session: getSessionFromCookie(request.headers.cookie) });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    return sendJson(response, 200, { session });
   }
 
   if (pathname === "/api/auth/signup" && request.method === "POST") {
     try {
       const body = await readJsonBody(request);
-      const result = signUp(body);
+      const result = await signUp(body);
       return sendJson(response, 200, result, {
         "Set-Cookie": createSessionCookie(result.sessionId),
       });
@@ -822,7 +826,7 @@ async function handleAuthRoute(request, response, pathname) {
   if (pathname === "/api/auth/login" && request.method === "POST") {
     try {
       const body = await readJsonBody(request);
-      const result = signIn(body);
+      const result = await signIn(body);
       return sendJson(response, 200, result, {
         "Set-Cookie": createSessionCookie(result.sessionId),
       });
@@ -832,8 +836,8 @@ async function handleAuthRoute(request, response, pathname) {
   }
 
   if (pathname === "/api/auth/logout" && request.method === "POST") {
-    const context = getUserContextFromCookie(request.headers.cookie);
-    signOut(context?.sessionId);
+    const context = await getUserContextFromCookie(request.headers.cookie);
+    await signOut(context?.sessionId);
     return sendJson(response, 200, { success: true }, {
       "Set-Cookie": clearSessionCookie(),
     });
@@ -842,7 +846,7 @@ async function handleAuthRoute(request, response, pathname) {
   if (pathname === "/api/auth/forgot-password" && request.method === "POST") {
     try {
       const body = await readJsonBody(request);
-      const result = requestPasswordReset(body);
+      const result = await requestPasswordReset(body);
       return sendJson(response, 200, result);
     } catch (error) {
       return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Request failed." } });
@@ -852,7 +856,7 @@ async function handleAuthRoute(request, response, pathname) {
   if (pathname === "/api/auth/reset-password" && request.method === "POST") {
     try {
       const body = await readJsonBody(request);
-      const result = resetPassword(body);
+      const result = await resetPassword(body);
       return sendJson(response, 200, result);
     } catch (error) {
       return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Password reset failed." } });
@@ -861,12 +865,12 @@ async function handleAuthRoute(request, response, pathname) {
 
   if (pathname === "/api/auth/change-password" && request.method === "POST") {
     try {
-      const context = getUserContextFromCookie(request.headers.cookie);
+      const context = await getUserContextFromCookie(request.headers.cookie);
       if (!context) {
         return sendJson(response, 401, { error: { message: "Not authenticated." } });
       }
       const body = await readJsonBody(request);
-      const result = changePassword({ userId: context.user.id, ...body });
+      const result = await changePassword({ userId: context.user.id, ...body });
       return sendJson(response, 200, result);
     } catch (error) {
       return sendJson(response, 400, { error: { message: error instanceof Error ? error.message : "Change password failed." } });
@@ -895,19 +899,19 @@ async function handleDatabaseRoute(request, response, pathname, context) {
 
     switch (action) {
       case "select":
-        result = selectRecords(table, body, context);
+        result = await selectRecords(table, body, context);
         break;
       case "insert":
-        result = insertRecords(table, body, context);
+        result = await insertRecords(table, body, context);
         break;
       case "update":
-        result = updateRecords(table, body, context);
+        result = await updateRecords(table, body, context);
         break;
       case "delete":
-        result = deleteRecords(table, body, context);
+        result = await deleteRecords(table, body, context);
         break;
       case "upsert":
-        result = upsertRecords(table, body, context);
+        result = await upsertRecords(table, body, context);
         break;
       default:
         return sendJson(response, 404, { error: { message: "Unknown database action." } });
@@ -1024,7 +1028,7 @@ async function handleWhatsAppRoute(request, response, pathname, context) {
       }
 
       // Check if event has WhatsApp enabled
-      const event = db.prepare("SELECT enable_whatsapp FROM events WHERE id = ?").get(eventId);
+      const event = await db.prepare("SELECT enable_whatsapp FROM events WHERE id = ?").get(eventId);
       if (!event || !event.enable_whatsapp) {
         return sendJson(response, 200, { success: false, message: "WhatsApp not enabled for this event", skipped: true });
       }
@@ -1060,7 +1064,7 @@ async function handleWhatsAppRoute(request, response, pathname, context) {
       }
 
       // Check if event has WhatsApp enabled
-      const event = db.prepare("SELECT enable_whatsapp FROM events WHERE id = ?").get(eventId);
+      const event = await db.prepare("SELECT enable_whatsapp FROM events WHERE id = ?").get(eventId);
       if (!event || !event.enable_whatsapp) {
         return sendJson(response, 200, { success: false, message: "WhatsApp not enabled for this event", skipped: true });
       }
@@ -1089,22 +1093,22 @@ const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", "http://localhost");
     const pathname = url.pathname;
-    const context = getUserContextFromCookie(request.headers.cookie);
+    const context = await getUserContextFromCookie(request.headers.cookie);
 
     if (pathname.startsWith("/api/auth/")) {
-      return handleAuthRoute(request, response, pathname);
+      return await handleAuthRoute(request, response, pathname);
     }
 
     if (pathname.startsWith("/api/db/")) {
-      return handleDatabaseRoute(request, response, pathname, context);
+      return await handleDatabaseRoute(request, response, pathname, context);
     }
 
     if (pathname.startsWith("/api/storage/")) {
-      return handleStorageRoute(request, response, pathname, context);
+      return await handleStorageRoute(request, response, pathname, context);
     }
 
     if (pathname.startsWith("/api/whatsapp/")) {
-      return handleWhatsAppRoute(request, response, pathname, context);
+      return await handleWhatsAppRoute(request, response, pathname, context);
     }
 
     if (pathname.startsWith("/uploads/")) {
@@ -1117,6 +1121,15 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`CampusConnect backend listening on http://localhost:${PORT}`);
+async function startServer() {
+  await initializeDatabase();
+
+  server.listen(PORT, () => {
+    console.log(`CampusConnect backend listening on http://localhost:${PORT}`);
+  });
+}
+
+startServer().catch((error) => {
+  console.error("Failed to start CampusConnect backend:", error);
+  process.exitCode = 1;
 });

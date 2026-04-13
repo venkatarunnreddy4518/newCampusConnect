@@ -1,38 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { db, nowIso } from "./database.mjs";
 
-// WhatsApp Service Configuration
-// Configure these with your WhatsApp service credentials
+function isEnabled(value) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
 const WHATSAPP_CONFIG = {
-  // Set to true to enable WhatsApp notifications
-  enabled: Boolean(process.env.WHATSAPP_ENABLED),
-  // API service type: 'twilio' or 'mock'
+  enabled: isEnabled(process.env.WHATSAPP_ENABLED),
   serviceType: process.env.WHATSAPP_SERVICE_TYPE || "mock",
-  // Twilio Account SID
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || "",
-  // Twilio Auth Token
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || "",
-  // Twilio WhatsApp Sender Phone Number (must be registered with Twilio)
   senderNumber: process.env.WHATSAPP_SENDER_NUMBER || "",
 };
 
-/**
- * Format phone number to include country code if missing
- */
 function formatPhoneNumber(phone) {
-  // Remove any non-digit characters
-  const cleaned = phone.replace(/\D/g, "");
+  const cleaned = String(phone || "").replace(/\D/g, "");
 
-  // If phone number doesn't start with country code (1-3 digits), assume India (+91)
   if (cleaned.length === 10) {
     return `+91${cleaned}`;
   }
 
-  if (cleaned.length < 10) {
-    return null; // Invalid phone number
-  }
-
-  // If already has country code
   if (cleaned.length > 10) {
     return `+${cleaned}`;
   }
@@ -40,9 +27,6 @@ function formatPhoneNumber(phone) {
   return null;
 }
 
-/**
- * Send WhatsApp message via Twilio
- */
 async function sendViaTwilio(toPhoneNumber, messageBody) {
   const { twilioAccountSid, twilioAuthToken, senderNumber } = WHATSAPP_CONFIG;
 
@@ -55,13 +39,8 @@ async function sendViaTwilio(toPhoneNumber, messageBody) {
   }
 
   try {
-    // Twilio WhatsApp API endpoint
     const url = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-
-    // Create Basic Auth header
-    const credentials = Buffer.from(
-      `${twilioAccountSid}:${twilioAuthToken}`
-    ).toString("base64");
+    const credentials = Buffer.from(`${twilioAccountSid}:${twilioAuthToken}`).toString("base64");
 
     const response = await fetch(url, {
       method: "POST",
@@ -102,13 +81,30 @@ async function sendViaTwilio(toPhoneNumber, messageBody) {
   }
 }
 
-/**
- * Send WhatsApp message via configured service
- * @param {string} toPhoneNumber - Recipient phone number
- * @param {string} messageType - 'registration' or 'reminder'
- * @param {object} eventDetails - Event details object
- * @returns {Promise<object>} - Response from WhatsApp API
- */
+function buildRegistrationMessage(eventDetails) {
+  return `*Event Registration Confirmed!*
+
+Event: ${eventDetails.eventName}
+Date: ${eventDetails.eventDate}
+Time: ${eventDetails.eventTime || "Check email for details"}
+Venue: ${eventDetails.eventVenue}
+
+You are all set. See you there!
+
+For more details, visit CampusConnect.`;
+}
+
+function buildReminderMessage(eventDetails) {
+  return `*Event Reminder!*
+
+Event: ${eventDetails.eventName}
+Date: ${eventDetails.eventDate}
+Time: ${eventDetails.eventTime || "Check email for details"}
+Venue: ${eventDetails.eventVenue}
+
+Do not miss it. See you soon!`;
+}
+
 async function sendWhatsAppMessage(toPhoneNumber, messageType, eventDetails) {
   if (!WHATSAPP_CONFIG.enabled) {
     console.log(`[WhatsApp] Service disabled. Message type: ${messageType}`);
@@ -120,75 +116,39 @@ async function sendWhatsAppMessage(toPhoneNumber, messageType, eventDetails) {
     return { success: false, reason: "Invalid phone number format" };
   }
 
-  // Build message body
-  let messageBody = "";
-  if (messageType === "registration") {
-    messageBody = buildRegistrationMessage(eventDetails);
-  } else if (messageType === "reminder") {
-    messageBody = buildReminderMessage(eventDetails);
-  }
+  const messageBody = messageType === "registration"
+    ? buildRegistrationMessage(eventDetails)
+    : buildReminderMessage(eventDetails);
 
-  // Route to appropriate service
   if (WHATSAPP_CONFIG.serviceType === "twilio") {
     return sendViaTwilio(formattedPhone, messageBody);
-  } else {
-    // Mock mode for development
-    console.log(`[WhatsApp MOCK] ${messageType} message queued for ${formattedPhone}`);
-    console.log(`Message: ${messageBody}`);
-    return {
-      success: true,
-      messageId: randomUUID(),
-      phone: formattedPhone,
-      mode: "mock",
-    };
   }
-}
-    return {
-      success: false,
-      reason: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
 
-/**
- * Build registration message
- */
-function buildRegistrationMessage(eventDetails) {
-  return `🎉 *Event Registration Confirmed!*
-
-Event: ${eventDetails.eventName}
-Date: ${eventDetails.eventDate}
-Time: ${eventDetails.eventTime || "Check email for details"}
-Venue: ${eventDetails.eventVenue}
-
-✅ You're all set! See you there!
-
-For more details, visit CampusConnect.`;
+  console.log(`[WhatsApp MOCK] ${messageType} message queued for ${formattedPhone}`);
+  console.log(`Message: ${messageBody}`);
+  return {
+    success: true,
+    messageId: randomUUID(),
+    phone: formattedPhone,
+    mode: "mock",
+  };
 }
 
-/**
- * Build reminder message
- */
-function buildReminderMessage(eventDetails) {
-  return `⏰ *Event Reminder!*
-
-Event: ${eventDetails.eventName}
-Date: ${eventDetails.eventDate}
-Time: ${eventDetails.eventTime || "Check email for details"}
-Venue: ${eventDetails.eventVenue}
-
-Don't miss out! See you soon! 🚀`;
-}
-
-/**
- * Log WhatsApp message to database
- */
-export function logWhatsAppMessage(userId, phoneNumber, eventId, messageType, messageBody, status = "pending", whatsappMessageId = null, errorMessage = null) {
+export async function logWhatsAppMessage(
+  userId,
+  phoneNumber,
+  eventId,
+  messageType,
+  messageBody,
+  status = "pending",
+  whatsappMessageId = null,
+  errorMessage = null,
+) {
   const id = randomUUID();
   const createdAt = nowIso();
 
   try {
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO whatsapp_messages (
         id, user_id, phone_number, event_id, message_type, message_body,
         status, whatsapp_message_id, error_message, created_at
@@ -203,7 +163,7 @@ export function logWhatsAppMessage(userId, phoneNumber, eventId, messageType, me
       status,
       whatsappMessageId,
       errorMessage,
-      createdAt
+      createdAt,
     );
 
     return { success: true, id };
@@ -213,14 +173,11 @@ export function logWhatsAppMessage(userId, phoneNumber, eventId, messageType, me
   }
 }
 
-/**
- * Mark WhatsApp message as sent
- */
-export function markWhatsAppMessageSent(messageId, whatsappMessageId) {
+export async function markWhatsAppMessageSent(messageId, whatsappMessageId) {
   const sentAt = nowIso();
 
   try {
-    db.prepare(`
+    await db.prepare(`
       UPDATE whatsapp_messages
       SET status = 'sent', whatsapp_message_id = ?, sent_at = ?
       WHERE id = ?
@@ -233,10 +190,9 @@ export function markWhatsAppMessageSent(messageId, whatsappMessageId) {
   }
 }
 
-/**
- * Send WhatsApp notification on registration
- */
 export async function notifyRegistrationViaWhatsApp(userId, phoneNumber, eventId, eventName, eventDate, eventVenue) {
+  const messageBody = `Event: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`;
+
   try {
     const result = await sendWhatsAppMessage(phoneNumber, "registration", {
       eventName,
@@ -245,48 +201,48 @@ export async function notifyRegistrationViaWhatsApp(userId, phoneNumber, eventId
     });
 
     if (result.success) {
-      logWhatsAppMessage(
+      await logWhatsAppMessage(
         userId,
         phoneNumber,
         eventId,
         "registration",
-        `Event: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`,
+        messageBody,
         "sent",
-        result.messageId
+        result.messageId,
       );
       return { success: true, messageId: result.messageId };
-    } else {
-      logWhatsAppMessage(
-        userId,
-        phoneNumber,
-        eventId,
-        "registration",
-        `Event: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`,
-        "failed",
-        null,
-        result.reason
-      );
-      return { success: false, error: result.reason };
     }
-  } catch (error) {
-    logWhatsAppMessage(
+
+    await logWhatsAppMessage(
       userId,
       phoneNumber,
       eventId,
       "registration",
-      `Event: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`,
+      messageBody,
       "failed",
       null,
-      error instanceof Error ? error.message : "Unknown error"
+      result.reason,
     );
-    return { success: false, error };
+    return { success: false, error: result.reason };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    await logWhatsAppMessage(
+      userId,
+      phoneNumber,
+      eventId,
+      "registration",
+      messageBody,
+      "failed",
+      null,
+      message,
+    );
+    return { success: false, error: message };
   }
 }
 
-/**
- * Send WhatsApp notification for reminder
- */
 export async function notifyReminderViaWhatsApp(userId, phoneNumber, eventId, eventName, eventDate, eventVenue) {
+  const messageBody = `Reminder: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`;
+
   try {
     const result = await sendWhatsAppMessage(phoneNumber, "reminder", {
       eventName,
@@ -295,41 +251,42 @@ export async function notifyReminderViaWhatsApp(userId, phoneNumber, eventId, ev
     });
 
     if (result.success) {
-      logWhatsAppMessage(
+      await logWhatsAppMessage(
         userId,
         phoneNumber,
         eventId,
         "reminder",
-        `Reminder: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`,
+        messageBody,
         "sent",
-        result.messageId
+        result.messageId,
       );
       return { success: true, messageId: result.messageId };
-    } else {
-      logWhatsAppMessage(
-        userId,
-        phoneNumber,
-        eventId,
-        "reminder",
-        `Reminder: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`,
-        "failed",
-        null,
-        result.reason
-      );
-      return { success: false, error: result.reason };
     }
-  } catch (error) {
-    logWhatsAppMessage(
+
+    await logWhatsAppMessage(
       userId,
       phoneNumber,
       eventId,
       "reminder",
-      `Reminder: ${eventName}, Date: ${eventDate}, Venue: ${eventVenue}`,
+      messageBody,
       "failed",
       null,
-      error instanceof Error ? error.message : "Unknown error"
+      result.reason,
     );
-    return { success: false, error };
+    return { success: false, error: result.reason };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    await logWhatsAppMessage(
+      userId,
+      phoneNumber,
+      eventId,
+      "reminder",
+      messageBody,
+      "failed",
+      null,
+      message,
+    );
+    return { success: false, error: message };
   }
 }
 
