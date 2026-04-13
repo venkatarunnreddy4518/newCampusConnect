@@ -6,7 +6,7 @@ CampusConnect now runs on a local SQL-backed backend.
 
 - Frontend: React + Vite
 - Backend: Node.js HTTP server
-- Database: SQLite via `node:sqlite`
+- Database: MySQL
 - File storage: local `uploads/` directory
 
 ## Getting Started
@@ -19,7 +19,7 @@ npm run dev
 This starts:
 
 - Vite on `http://localhost:8080`
-- The backend/API on `http://localhost:3001`
+- The backend/API on `http://localhost:3002`
 
 Optional (Python/Flask example API):
 
@@ -44,7 +44,7 @@ The backend will serve the built frontend from `dist/`.
 
 ## Local Data
 
-- Database file: `.local/campusconnect.sqlite`
+- Database: MySQL database configured in `.env`
 - SQL schema/init file: `database/init.sql`
 - Uploaded files: `uploads/`
 
@@ -53,7 +53,7 @@ The first account you create is automatically granted the `admin` role so you ca
 ## What Changed
 
 - Supabase auth was replaced with local email/password auth and cookie sessions.
-- Supabase tables were recreated in SQLite.
+- Supabase tables were recreated in MySQL.
 - Supabase storage buckets were replaced with local upload folders.
 - Supabase realtime subscriptions were replaced with lightweight polling in the client.
 

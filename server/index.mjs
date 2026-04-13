@@ -32,7 +32,7 @@ import {
   changePassword,
 } from "./auth.mjs";
 
-const PORT = Number(process.env.PORT || 3001);
+const PORT = Number(process.env.PORT || process.env.CAMPUSCONNECT_API_PORT || 3002);
 const PUBLIC_TABLES = new Set(["events", "clubs", "club_memberships", "site_settings", "live_matches", "match_scorecard"]);
 const PUBLIC_UPLOAD_BUCKETS = new Set(["avatars", "club-posters", "event-posters", "trailer-videos"]);
 const TEXT_MIME_TYPES = {
@@ -805,6 +805,13 @@ async function readBufferBody(request) {
   return Buffer.concat(chunks);
 }
 
+function handleHealthRoute(response) {
+  return sendJson(response, 200, {
+    status: "ok",
+    service: "campusconnect-backend",
+  });
+}
+
 async function handleAuthRoute(request, response, pathname) {
   if (pathname === "/api/auth/session" && request.method === "GET") {
     const session = await getSessionFromCookie(request.headers.cookie);
@@ -1094,6 +1101,10 @@ const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
     const pathname = url.pathname;
     const context = await getUserContextFromCookie(request.headers.cookie);
+
+    if (pathname === "/api/health" && request.method === "GET") {
+      return handleHealthRoute(response);
+    }
 
     if (pathname.startsWith("/api/auth/")) {
       return await handleAuthRoute(request, response, pathname);

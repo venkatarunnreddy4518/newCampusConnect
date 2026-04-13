@@ -4,7 +4,8 @@ Flask database configuration for MySQL
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 # MySQL Connection Configuration
 DB_HOST = os.environ.get("DB_HOST", "localhost")

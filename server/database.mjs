@@ -453,8 +453,15 @@ export class DatabaseWrapper {
 
 export const db = new DatabaseWrapper();
 
-export function nowIso() {
-  return new Date().toISOString();
+export function nowIso(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const pad = (part) => String(part).padStart(2, "0");
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-") + ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 export async function runInTransaction(callback) {

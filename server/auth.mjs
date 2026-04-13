@@ -124,7 +124,7 @@ export async function getUserContextFromCookie(cookieHeader = "") {
     return null;
   }
 
-  if (Date.parse(session.expires_at) <= Date.now()) {
+  if (new Date(session.expires_at).getTime() <= Date.now()) {
     await db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
     return null;
   }
@@ -156,7 +156,7 @@ export async function getSessionFromCookie(cookieHeader = "") {
 async function createSession(userId) {
   const sessionId = randomUUID();
   const createdAt = nowIso();
-  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();
+  const expiresAt = nowIso(new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000));
 
   await db.prepare(`
     INSERT INTO sessions (id, user_id, created_at, expires_at)
@@ -274,7 +274,7 @@ export async function requestPasswordReset({ email }) {
   const tokenId = randomUUID();
   const token = generateResetToken();
   const createdAt = nowIso();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+  const expiresAt = nowIso(new Date(Date.now() + 60 * 60 * 1000)); // 1 hour
 
   await db.prepare(`
     INSERT INTO password_reset_tokens (id, user_id, token, expires_at, created_at, used)
