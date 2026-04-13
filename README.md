@@ -1,6 +1,6 @@
 # CampusConnect
 
-CampusConnect now runs on a local SQL-backed backend instead of Supabase.
+CampusConnect now runs on a local SQL-backed backend.
 
 ## Stack
 
