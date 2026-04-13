@@ -450,22 +450,3 @@ INSERT IGNORE INTO clubs (
     'Entrepreneurship Cell',
     'Ideate, innovate and launch startups. Mentorship from industry leaders.',
     'Business',
-    NULL,
-    NULL,
-    NULL,
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-  ),
-  (
-    'seed-club-drama',
-    'Drama Club',
-    'Theatre productions, street plays, and acting workshops throughout the year.',
-    'Creative',
-    NULL,
-    NULL,
-    NULL,
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-  );
-show tables;
-DESCRIBE users;
